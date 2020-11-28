@@ -1,0 +1,11 @@
+Panel
+1) finish adjacency values
+2) devise a way to handle vertical track (east vs west) in follow route
+3) have a way to link with external logic for controlling turnouta and signals
+
+
+Draw
+3) save/save as - select rows and columns to save, and at what column/row offset within the file
+4) read in files starting from a given offset column and/or row
+5) warn if changes lost => ask
+8) clear
