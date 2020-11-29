@@ -7,5 +7,4 @@ Panel
 Draw
 3) save/save as - select rows and columns to save, and at what column/row offset within the file
 4) read in files starting from a given offset column and/or row
-5) warn if changes lost => ask
 8) clear

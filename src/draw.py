@@ -7,7 +7,7 @@ import wx
 
 from bitmaps import BitMaps
 from szpallette import SzPallette
-from szcanvas import SzCanvas, PENDING_ROW_DELETE, PENDING_ROW_INSERT, PENDING_COL_DELETE, PENDING_COL_INSERT
+from canvas import Canvas, PENDING_ROW_DELETE, PENDING_ROW_INSERT, PENDING_COL_DELETE, PENDING_COL_INSERT
 from pallettemap import PalletteMap
 
 PANEL = (50, 10)
@@ -16,6 +16,9 @@ cmdFolder = os.path.realpath(os.path.abspath(os.path.split(inspect.getfile(inspe
 MENU_FILE_SAVE = 101
 MENU_FILE_SAVEAS = 102
 MENU_FILE_OPEN = 103
+
+MENU_ENUM_TURNOUTS = 201
+MENU_ENUM_SIGNALS = 202
 		
 class MyFrame(wx.Frame):
 	def __init__(self):
@@ -24,6 +27,8 @@ class MyFrame(wx.Frame):
 		self.Bind(wx.EVT_CLOSE, self.onClose)
 		
 		self.currentFile = None
+		self.currentStart = [0, 0]
+		self.currentEnd = [49, 38]
 		self.modified = False
 		
 		self.statusBar = self.CreateStatusBar(2)
@@ -37,11 +42,18 @@ class MyFrame(wx.Frame):
 		menuFile.Append(MENU_FILE_SAVEAS, "Save As", "Save to a specified array file")
 		menuBar.Append(menuFile, "File")
 		
+		menuEnum = wx.Menu()
+		menuEnum.Append(MENU_ENUM_TURNOUTS, "Turnouts", "Enumerate Turnouts")
+		menuEnum.Append(MENU_ENUM_SIGNALS, "Signals", "Enumerate Signals")
+		menuBar.Append(menuEnum, "Enumerate")
+		
 		self.SetMenuBar(menuBar)
 
 		self.Bind(wx.EVT_MENU, self.menuFileOpen, id=MENU_FILE_OPEN)
 		self.Bind(wx.EVT_MENU, self.menuFileSave, id=MENU_FILE_SAVE)
 		self.Bind(wx.EVT_MENU, self.menuFileSaveAs, id=MENU_FILE_SAVEAS)
+		self.Bind(wx.EVT_MENU, self.menuEnumTurnouts, id=MENU_ENUM_TURNOUTS)
+		self.Bind(wx.EVT_MENU, self.menuEnumSignals, id=MENU_ENUM_SIGNALS)
 
 		
 		self.bmps = BitMaps(os.path.join(cmdFolder, "bitmaps"))
@@ -56,13 +68,13 @@ class MyFrame(wx.Frame):
 		
 		self.szPal = SzPallette(self, self.pallettes, self.bmps)
 		
-		self.szCanvas = SzCanvas(self, self.pallettes, self.bmps)
+		self.canvas = Canvas(self, self.pallettes, self.bmps)
 		
 		sz = wx.BoxSizer(wx.HORIZONTAL)
 		sz.AddSpacer(20)
 		sz.Add(self.szPal)
 		sz.AddSpacer(50)
-		sz.Add(self.szCanvas)
+		sz.Add(self.canvas)
 		sz.AddSpacer(20)
 		
 		vsz = wx.BoxSizer(wx.VERTICAL)
@@ -72,28 +84,28 @@ class MyFrame(wx.Frame):
 		
 		self.SetSizer(vsz)
 		self.Fit()
-		self.szCanvas.setCursor()
+		self.canvas.setCursor()
 		self.setWindowTitle()
 		
 	def onRowInsert(self, _):
 		self.setStatusBar("select row to insert before")
-		self.szCanvas.setPendingOperation(PENDING_ROW_INSERT)
+		self.canvas.setPendingOperation(PENDING_ROW_INSERT)
 		
 	def onRowDelete(self, _):
 		self.setStatusBar("select row to delete")
-		self.szCanvas.setPendingOperation(PENDING_ROW_DELETE)
+		self.canvas.setPendingOperation(PENDING_ROW_DELETE)
 		
 	def onColInsert(self, _):
 		self.setStatusBar("select column to insert before")
-		self.szCanvas.setPendingOperation(PENDING_COL_INSERT)
+		self.canvas.setPendingOperation(PENDING_COL_INSERT)
 		
 	def onColDelete(self, _):
 		self.setStatusBar("select column to delete")
-		self.szCanvas.setPendingOperation(PENDING_COL_DELETE)
+		self.canvas.setPendingOperation(PENDING_COL_DELETE)
 		
 	def onOperationCancel(self, _):
 		self.setStatusBar("")
-		self.szCanvas.setPendingOperation(None)
+		self.canvas.setPendingOperation(None)
 		
 	def setWindowTitle(self):
 		t = "Panel Editor"
@@ -116,12 +128,12 @@ class MyFrame(wx.Frame):
 		if self.currentFile:
 			self.fileSaveAs(self.currentFile)
 		else:
-			self.getOutputFile()
+			self.saveToOutputFile()
 	
 	def menuFileSaveAs(self, _):
-		self.getOutputFile()
+		self.saveToOutputFile()
 		
-	def getOutputFile(self):
+	def saveToOutputFile(self):
 		wildcard = "Array file (*.arr)|*.arr|All files (*.*)|*.*"
 		dlg = wx.FileDialog(
 			self, message="Save file as ...", defaultDir=os.getcwd(),
@@ -136,7 +148,7 @@ class MyFrame(wx.Frame):
 		self.fileSaveAs(path)
 
 	def fileSaveAs(self, path):		
-		d = self.szCanvas.getData()
+		d = self.canvas.getData()
 		with open(path, "w") as fp:
 			for r in d:
 				fp.write("".join(r) + "\n")
@@ -148,7 +160,14 @@ class MyFrame(wx.Frame):
 				
 	def menuFileOpen(self, _):
 		if self.modified:
-			print("warn about losing changes")
+			dlg = wx.MessageDialog(self, "You have unsaved changes.  Are you sure you want to open a new file?",
+				'Unsaved Changes', wx.YES_NO | wx.NO_DEFAULT | wx.ICON_INFORMATION)
+	
+			rc = dlg.ShowModal()
+			dlg.Destroy()
+
+			if rc != wx.ID_YES:
+				return
 			
 		wildcard = "Array file (*.arr)|*.arr|All files (*.*)|*.*"
 		dlg = wx.FileDialog(self, message="Choose a file", defaultDir=os.getcwd(),
@@ -170,7 +189,22 @@ class MyFrame(wx.Frame):
 			inlns = f.readlines()
 			
 		mapArray = [x.strip() for x in inlns]
-		self.szCanvas.loadCanvas(mapArray)
+		self.canvas.loadCanvas(mapArray)
+		
+	def menuEnumTurnouts(self, _):
+		toList = self.canvas.enumerateTurnouts()
+		print("%d turnouts found" % len(toList))
+		for to in toList:
+			print(str(to))
+		
+	def menuEnumSignals(self, _):
+		sgList = self.canvas.enumerateSignals()
+		print("%d signals found" % len(sgList))
+		for sg in sgList:
+			print(str(sg))
+			
+		self.canvas.addText(23, 27, "Sample Text")
+		
 		
 	def getCurrentTool(self):
 		return self.szPal.getCurrentTool()
@@ -180,7 +214,15 @@ class MyFrame(wx.Frame):
 		
 	def onClose(self, _):
 		if self.modified:
-			print("warn about losing changes")
+			dlg = wx.MessageDialog(self, "Are you sure you want to exit with unsaved changes?",
+				'Unsaved Changes', wx.YES_NO | wx.NO_DEFAULT | wx.ICON_INFORMATION)
+	
+			rc = dlg.ShowModal()
+			dlg.Destroy()
+
+			if rc != wx.ID_YES:
+				return
+
 		self.Hide()
 		self.Destroy()
 

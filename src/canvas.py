@@ -17,8 +17,7 @@ class CanvasTile:
 		self.cbHover = cbHover
 		self.bmp.Bind(wx.EVT_LEFT_DOWN, self.onClick)
 		self.bmp.Bind(wx.EVT_RIGHT_DOWN, self.onRightClick)
-		self.bmp.Bind(wx.EVT_ENTER_WINDOW, self.onEnterWindow)
-		self.bmp.Bind(wx.EVT_LEAVE_WINDOW, self.onLeaveWindow)
+		self.bmp.Bind(wx.EVT_MOTION, self.onMotion)
 		
 	def getBmp(self):
 		return self.bmp
@@ -30,14 +29,31 @@ class CanvasTile:
 	def onRightClick(self, evt):
 		self.cbClick(self.bmp, self.row, self.col, False)
 		
-	def onEnterWindow(self, evt):
-		self.cbHover(self.col, self.row, True)
-		
-	def onLeaveWindow(self, evt):
-		self.cbHover(self.col, self.row, False)
+	def onMotion(self, evt):
+		self.cbHover(self.col, self.row)
 
-class SzCanvas(wx.BoxSizer):
+class Turnout:
+	def __init__(self, c, pos):
+		self.char = c
+		self.pos = pos
+		
+	def __str__(self):
+		return "Turnout %s at position: c%d r%d" % (self.char, self.pos[0], self.pos[1])
+
+class Signal:
+	def __init__(self, c, pos):
+		self.char = c
+		self.pos = pos
+		
+	def __str__(self):
+		return "Signal %s at position: c%d r%d" % (self.char, self.pos[0], self.pos[1])
+	
+class Canvas(wx.Panel):
 	def __init__(self, parent, pallettes, bmps):
+		wx.Panel.__init__(self, parent, wx.ID_ANY)	
+			
+		self.SetBackgroundColour(wx.Colour(16, 16, 16))
+		
 		self.lastRow = -1
 		self.lastCol = -1
 		self.cRow = 0
@@ -48,11 +64,11 @@ class SzCanvas(wx.BoxSizer):
 		
 		self.pendingOperation = None
 		
-		self.bmpCursor = wx.StaticBitmap(self.parent, wx.ID_ANY, self.cursor1, size=(BMPDIM[0]+4, BMPDIM[1]+4), style=0)
+		self.bmpCursor = wx.StaticBitmap(self, wx.ID_ANY, self.cursor1, size=(BMPDIM[0]+4, BMPDIM[1]+4), style=0)
 		self.currentCursor = self.cursor1
 		self.masterPallette = pallettes['master']
-		wx.BoxSizer.__init__(self, wx.VERTICAL)
-		self.AddSpacer(10)
+		self.cvsz = wx.BoxSizer(wx.VERTICAL)
+		self.cvsz.AddSpacer(1)
 		
 		self.bmpCursor.Bind(wx.EVT_LEFT_DOWN, self.onClick)
 		self.bmpCursor.Bind(wx.EVT_RIGHT_DOWN, self.onRightClick)
@@ -63,10 +79,11 @@ class SzCanvas(wx.BoxSizer):
 		
 		for r in range(rowsCanvas):
 			hsz = wx.BoxSizer(wx.HORIZONTAL)
+			hsz.AddSpacer(1)
 			tileRow = []
 			canvasRow = []
 			for c in range(colsCanvas):
-				b = wx.StaticBitmap(self.parent, wx.ID_ANY, self.masterPallette['.'], size=BMPDIM, style=0)
+				b = wx.StaticBitmap(self, wx.ID_ANY, self.masterPallette['.'], size=BMPDIM, style=0)
 				ct = CanvasTile(b, r, c, self.canvasClick, self.canvasHover)
 				tileRow.append('.')
 				canvasRow.append(ct)
@@ -74,7 +91,39 @@ class SzCanvas(wx.BoxSizer):
 				
 			self.tileArray.append(tileRow)
 			self.canvasTiles.append(canvasRow)
-			self.Add(hsz)
+			hsz.AddSpacer(1)
+			self.cvsz.Add(hsz)
+			
+		self.cvsz.AddSpacer(1)
+		self.SetSizer(self.cvsz)
+			
+				
+	def addText(self, r, c, text):
+		ct = self.canvasTiles[r][c]
+		b = ct.getBmp()
+		p = b.GetPosition()
+		t = wx.StaticText(self, wx.ID_ANY, text, pos=p)
+		t.SetBackgroundColour(wx.Colour(0, 0, 0))
+		t.SetForegroundColour(wx.Colour(255, 128, 20))
+
+			
+	def enumerateTurnouts(self):
+		results = []
+		for r in range(rowsCanvas):
+			for c in range(colsCanvas):
+				t = self.tileArray[r][c]
+				if t in [ '2', '3', '4', '5' ]:
+					results.append(Turnout(t, (c, r)))
+		return results
+			
+	def enumerateSignals(self):
+		results = []
+		for r in range(rowsCanvas):
+			for c in range(colsCanvas):
+				t = self.tileArray[r][c]
+				if t in [ '0', '1' ]:
+					results.append(Signal(t, (c, r)))
+		return results
 
 	def setPendingOperation(self, task=None):
 		if task is None:
@@ -208,13 +257,11 @@ class SzCanvas(wx.BoxSizer):
 				self.lastRow = row
 				self.lastCol = col
 				
-	def canvasHover(self, col, row, entry):
+	def canvasHover(self, col, row):
 		self.cCol = col
 		self.cRow = row
 		self.setCursor()
-		
-		if entry:
-			self.parent.setStatusBar("%d : %d" % (col, row), 1)
+		self.parent.setStatusBar("%d : %d" % (col, row), 1)
 		
 	def getData(self):
 		return self.tileArray
