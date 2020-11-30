@@ -3,6 +3,8 @@ TTYPE_OCCUPIED = 1
 TTYPE_ROUTED = 2
 TTYPE_EASTROUTED = 3
 TTYPE_WESTROUTED = 4
+TTYPE_UPROUTED = 5
+TTYPE_DOWNROUTED = 6
 
 STYPE_RED = 'r'
 STYPE_GREEN = 'g'
@@ -44,7 +46,6 @@ class TrackTile(SimpleTile):
 		SimpleTile.__init__(self, nd)
 		
 	def getBmp(self, ttype, basend=None):
-		print("tracktipe get bmp")
 		if basend is not None:
 			base = basend
 		else:
@@ -53,7 +54,6 @@ class TrackTile(SimpleTile):
 		if ttype == TTYPE_OCCUPIED:
 			return base.occupied
 		elif ttype == TTYPE_ROUTED:
-			print("return base.routed")
 			return base.routed
 		elif ttype == TTYPE_EASTROUTED:
 			return base.eastrouted
@@ -87,6 +87,10 @@ class RevTrackTile(TrackTile):
 			return self.nd.eastrouted
 		elif ttype == TTYPE_WESTROUTED:
 			return self.nd.westrouted
+		elif ttype == TTYPE_DOWNROUTED:
+			return self.nd.downrouted
+		elif ttype == TTYPE_UPROUTED:
+			return self.nd.uprouted
 		else:
 			return TrackTile.getBmp(self, ttype)
 		

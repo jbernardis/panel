@@ -1,5 +1,5 @@
 from tileTypes import TTYPE_NORMAL, TTYPE_OCCUPIED, TTYPE_ROUTED, TTYPE_EASTROUTED, TTYPE_WESTROUTED, \
-				ADJ_WEST, ADJ_EAST, ADJ_REVERSED
+				TTYPE_UPROUTED, TTYPE_DOWNROUTED, ADJ_WEST, ADJ_EAST, ADJ_REVERSED
 
 class TrackElement:
 	def __init__(self, tileType, row, col):
@@ -13,6 +13,8 @@ class TrackElement:
 		self.routed = False
 		self.eastRouted = False
 		self.westRouted = False
+		self.upRouted = False
+		self.downRouted = False
 		
 		self.reversible = tileType.isReversible()
 		
@@ -54,25 +56,46 @@ class TrackElement:
 		self.routed = True
 		self.eastRouted = True
 		self.westRouted = False
+		self.upRouted = False
+		self.downRouted = False
 		
 	def setWestRouted(self):
 		self.routed = True
 		self.eastRouted = False
 		self.westRouted = True
+		self.upRouted = False
+		self.downRouted = False		
+		
+	def setUpRouted(self):
+		self.routed = True
+		self.eastRouted = False
+		self.westRouted = False
+		self.upRouted = True
+		self.downRouted = False
+		
+	def setDownRouted(self):
+		self.routed = True
+		self.eastRouted = False
+		self.westRouted = False
+		self.upRouted = False
+		self.downRouted = True
 		
 	def isRouted(self):
-		return self.routed or self.eastRouted or self.westRouted
+		return self.routed or self.eastRouted or self.westRouted or self.upRouted or self.downRouted
+	
+	def isVertical(self):
+		return self.adj[0] == [0, None] and self.adj[1] == [0, None]
 		
 	def getAdjacent(self, atype):
 		print("adjacency options: (%s)" % str(self.adj))
 		if self.adj is None:
 			return None
 		elif atype == ADJ_WEST:
-			return self.adj[0]
+			return [x for x in self.adj[0]]
 		elif atype == ADJ_REVERSED:
-			return self.adj[2]
+			return [x for x in self.adj[2]]
 		else: #atype == ADJ_EAST
-			return self.adj[1]
+			return [x for x in self.adj[1]]
 		
 	def getBmp(self):
 		if self.occupied:
@@ -83,6 +106,10 @@ class TrackElement:
 					ttype = TTYPE_EASTROUTED
 				elif self.westRouted:
 					ttype = TTYPE_WESTROUTED
+				elif self.upRouted:
+					ttype = TTYPE_UPROUTED
+				elif self.downRouted:
+					ttype = TTYPE_DOWNROUTED
 				else:
 					print("Huh??")
 					ttype = TTYPE_ROUTED
@@ -90,8 +117,6 @@ class TrackElement:
 				ttype = TTYPE_ROUTED
 		else:
 			ttype = TTYPE_NORMAL
-			
-		print("bmp ttype (%s)" % str(ttype))
 			
 		if self.turnout:
 			return self.tileType.getBmp(ttype, self.turnout.isReversed())
