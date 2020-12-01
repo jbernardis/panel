@@ -37,6 +37,9 @@ class Turnout:
 		self.char = c
 		self.pos = pos
 		
+	def getPos(self):
+		return self.pos
+		
 	def __str__(self):
 		return "Turnout %s at position: c%d r%d" % (self.char, self.pos[0], self.pos[1])
 
@@ -178,6 +181,13 @@ class Canvas(wx.Panel):
 
 	def setCursor(self):			
 		ct = self.canvasTiles[self.cRow][self.cCol]
+		b = ct.getBmp()
+		bx, by = b.GetPosition()
+		self.bmpCursor.SetBitmap(self.currentCursor)
+		self.bmpCursor.SetPosition((bx-2, by-2))
+		
+	def setCursorAt(self, row, col):
+		ct = self.canvasTiles[row][col]
 		b = ct.getBmp()
 		bx, by = b.GetPosition()
 		self.bmpCursor.SetBitmap(self.currentCursor)

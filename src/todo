@@ -1,7 +1,6 @@
 Panel
-1) finish adjacency values
-2) devise a way to handle vertical track (east vs west) in follow route
 3) have a way to link with external logic for controlling turnouta and signals
+4) szPallette from a sizer to a panel
 
 
 Draw

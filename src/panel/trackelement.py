@@ -87,7 +87,6 @@ class TrackElement:
 		return self.adj[0] == [0, None] and self.adj[1] == [0, None]
 		
 	def getAdjacent(self, atype):
-		print("adjacency options: (%s)" % str(self.adj))
 		if self.adj is None:
 			return None
 		elif atype == ADJ_WEST:

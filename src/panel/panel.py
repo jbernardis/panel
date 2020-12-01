@@ -2,21 +2,17 @@
 
 
 import os
-import inspect
+import wx
 
 from bitmaps import BitMaps
 from tileMap import TileMap
-from tileTypes import LEFT, RIGHT, ADJ_EAST, ADJ_WEST, ADJ_REVERSED, STYPE_RED, TTYPE_ROUTED, TTYPE_EASTROUTED, TTYPE_WESTROUTED, TTYPE_OCCUPIED, TTYPE_NORMAL
+from tileTypes import LEFT, ADJ_EAST, ADJ_WEST, ADJ_REVERSED, STYPE_RED, \
+		TTYPE_ROUTED, TTYPE_OCCUPIED, TTYPE_NORMAL
 from trackelement import TrackElement
-
 from turnout import Turnout
 from rrsignal import RRSignal
 
-import wx
-
 BMPDIM = (20, 20)
-PANEL = (50, 10)
-cmdFolder = os.path.realpath(os.path.abspath(os.path.split(inspect.getfile(inspect.currentframe()))[0]))
 
 class MyFrame(wx.Frame):
 	def __init__(self):
@@ -25,26 +21,13 @@ class MyFrame(wx.Frame):
 		wx.Frame.__init__(self, None, wx.ID_ANY, "Panel", size=(100, 100))
 		self.Bind(wx.EVT_CLOSE, self.onClose)
 		
-		self.bmps = BitMaps(os.path.join(cmdFolder, "bitmaps"))
+		self.bmps = BitMaps(os.path.join("..", "bitmaps"))
 		self.tileMap = TileMap(self.bmps)
 		
-		with open('panel.arr') as f:
-			inlns = f.readlines()
-			
-		self.mapArray = [x.strip() for x in inlns]
-			
-		if len(self.mapArray) < 1:
-			print("no data in arr file")
-			exit()
-			
-		l = len(self.mapArray[0])
-		for ln in self.mapArray:
-			if len(ln) != l:
-				print("All lines in arr file should be the same length")
-				exit()
+		self.loadData('panel')
 				
 		rows = len(self.mapArray)
-		cols = l
+		cols = len(self.mapArray[0])
 		
 		sz = wx.BoxSizer(wx.VERTICAL)
 		
@@ -85,6 +68,24 @@ class MyFrame(wx.Frame):
 		self.SetSizer(sz)
 		self.Fit()
 		
+		
+	def loadData(self, basename):
+		with open(os.path.join("..", basename + '.arr')) as f:
+			inlns = f.readlines()
+			
+		arr = [x.strip() for x in inlns]
+			
+		if len(arr) < 1:
+			print("no data in arr file")
+			exit()
+			
+		maxl = len(arr[0])
+		for ln in arr:
+			maxl = max(maxl, len(ln))
+			
+		self.mapArray = [a + '.'*(maxl-len(a)) for a in arr]
+
+		
 	def tracksMesh(self, te, lastAdj):
 		# return values:
 		#		boolean true if tracks mesh, false otherwise
@@ -93,35 +94,62 @@ class MyFrame(wx.Frame):
 		#		<0, 0, >0 indicating vertical movement up, none, down
 		nadj = te.getAdjacent(ADJ_EAST)
 		if lastAdj == nadj:
-			return True, ADJ_EAST, False, 0
+			# coming in on the east leg
+			if te.isTurnout() and te.isReversed():
+				revAdj = te.getAdjacent(ADJ_REVERSED)
+				if nadj[0] == revAdj[0]:
+					# incoming leg and reversed leg coming from the same direction
+					# this is impossible
+					print("EE")
+					return False, None, False, 0
+				
+				else:
+					return True, ADJ_EAST, False, 0
+			else:
+				return True, ADJ_EAST, False, 0
+			
 		if lastAdj[0] == 0 and nadj[0] == 0 and nadj[1] is None:
 			# allowance for vertical movement
 			return True, ADJ_EAST, False, -lastAdj[1]
 		
 		nadj = te.getAdjacent(ADJ_WEST)
 		if lastAdj == nadj:
-			return True, ADJ_WEST, False, 0
+			# coming in on the east leg
+			if te.isTurnout() and te.isReversed():
+				revAdj = te.getAdjacent(ADJ_REVERSED)
+				print("%d -> %d" % (nadj[0], revAdj[0]))
+				if nadj[0] == revAdj[0]:
+					# incoming leg and reversed leg coming from the same direction
+					# this is impossible
+					print("WW")
+					return False, None, False, 0
+				
+				else:
+					return True, ADJ_WEST, False, 0
+				
+			else:
+				return True, ADJ_WEST, False, 0
+		
 		if lastAdj[0] == 0 and nadj[0] == 0 and nadj[1] is None:
 			# allowance for vertical movement
 			return True, ADJ_WEST, False, -lastAdj[1]
 		
 		if te.isTurnout() and te.isReversed():
 			nadj = te.getAdjacent(ADJ_REVERSED)
+			print("%s -> %s" % (str(lastAdj), str(nadj)))
 			if lastAdj == nadj:
 				if nadj[0] < 0:
 					return True, ADJ_WEST, True, 0
 				else:
 					return True, ADJ_EAST, True, 0
 			
+		print("DFT")
 		return False, None, False, 0
 		
-	def followRoute(self, rStart, cStart, rtype, eb=True):
+	def markRoute(self, rStart, cStart, rtype, eb=True):
 		r = rStart
 		c = cStart
 		eastbound = eb
-		print("follow route starting at %d %d %s" % (r, c, self.mapArray[r][c]))
-		print("rtype = %s" % str(rtype))
-		print(eastbound)
 		
 		lastAdj = None
 		lastAdjRow = None
@@ -129,7 +157,7 @@ class MyFrame(wx.Frame):
 		while True:
 			entryReverse = False
 			vertDir = 0
-			print("===================================================== r:%d c:%d %s" %(r, c, self.mapArray[r][c]))
+
 			try:
 				bmp, te = self.panelMap[r][c]
 			except IndexError:
@@ -137,7 +165,6 @@ class MyFrame(wx.Frame):
 			
 			if lastAdj:
 				mesh, tileEntry, entryReverse, vertDir = self.tracksMesh(te, lastAdj)
-				print("tracksmesh: %s %s %s %s" % (str(mesh), str(tileEntry), str(entryReverse), str(vertDir)))
 				if not mesh:
 					print("last te does not mesh with this te")
 					break
@@ -152,20 +179,15 @@ class MyFrame(wx.Frame):
 				if te.isReversible():
 					if vertDir != 0:
 						if vertDir > 0: #moving down
-							print("down routed")
 							te.setDownRouted()
 						else:
-							print("up routed")
 							te.setUpRouted()
 					else:
 						if eastbound:
-							print("east routed")
 							te.setEastRouted()
 						else:
-							print("west routed")
 							te.setWestRouted()
 				else:
-					print("routed")
 					te.setRouted(True)
 			else:
 				te.setOccupied(False)
@@ -180,23 +202,19 @@ class MyFrame(wx.Frame):
 			else:
 				adj = te.getAdjacent(ADJ_WEST)
 				
-			print("first adjacency matrix = %s" % str(adj))
-
 			if adj is None:
 				break
 			if adj == [0, 0]:
 				break
 			if adj[1] is None:
-				print("modify adj1 to %d because of vertical movement" % lastAdjRow)
 				adj[1] = lastAdjRow
 			
-			print("final adjacency matrix = %s" % str(adj))
 			c += adj[0]
 			r += adj[1]
+			
+			# set up the last adjacency matrix to match against the COMPLEMENT of this movement
 			lastAdj = [-x for x in adj]
-			print("adjacency matrix for next check = %s" % str(lastAdj))
 			lastAdjRow = adj[1]
-			print("next location: %d %d" % (r,c))
 		
 	def clickTurnout(self, to, lr):
 		bmp = to.getBmp()
@@ -216,16 +234,13 @@ class MyFrame(wx.Frame):
 			else:
 				to.setReversed(True)
 				bmp.SetBitmap(te.getBmp())
-# 		else:
-# 			self.followRoute(9, 2)
 			
 	def clickSignal(self, sg, lr):
 		sg.setRed(not sg.isRed())
 		
 		r, c = sg.getBlockStart()
 		
-		self.followRoute(r, c, TTYPE_NORMAL if sg.isRed() else TTYPE_ROUTED, sg.isEast())
-		
+		self.markRoute(r, c, TTYPE_NORMAL if sg.isRed() else TTYPE_ROUTED, sg.isEast())
 		
 	def onClose(self, _):
 		self.Hide()

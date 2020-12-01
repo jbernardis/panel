@@ -1,6 +1,6 @@
 import wx
-from tileTypes import LEFT, RIGHT, STYPE_RED, STYPE_GREEN
-
+from tileTypes import LEFT, RIGHT, STYPE_GREEN, STYPE_RED
+ 	
 class RRSignal: 
 	def __init__(self, sid, tileType, r, c, bmp, cb):
 		self.sid = sid

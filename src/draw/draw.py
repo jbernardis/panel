@@ -1,25 +1,24 @@
 #!/bin/env python
 
-
 import os
-import inspect
 import wx
+import json
 
 from bitmaps import BitMaps
 from szpallette import SzPallette
 from canvas import Canvas, PENDING_ROW_DELETE, PENDING_ROW_INSERT, PENDING_COL_DELETE, PENDING_COL_INSERT
 from pallettemap import PalletteMap
+from annotateTurnoutsDlg import AnnotateTurnoutsDlg
 
 PANEL = (50, 10)
-cmdFolder = os.path.realpath(os.path.abspath(os.path.split(inspect.getfile(inspect.currentframe()))[0]))
 
 MENU_FILE_SAVE = 101
 MENU_FILE_SAVEAS = 102
 MENU_FILE_OPEN = 103
 
-MENU_ENUM_TURNOUTS = 201
-MENU_ENUM_SIGNALS = 202
-		
+MENU_ANN_TURNOUTS = 201
+MENU_ANN_SIGNALS = 202
+
 class MyFrame(wx.Frame):
 	def __init__(self):
 
@@ -30,6 +29,7 @@ class MyFrame(wx.Frame):
 		self.currentStart = [0, 0]
 		self.currentEnd = [49, 38]
 		self.modified = False
+		self.annotations = {}
 		
 		self.statusBar = self.CreateStatusBar(2)
 		
@@ -42,21 +42,21 @@ class MyFrame(wx.Frame):
 		menuFile.Append(MENU_FILE_SAVEAS, "Save As", "Save to a specified array file")
 		menuBar.Append(menuFile, "File")
 		
-		menuEnum = wx.Menu()
-		menuEnum.Append(MENU_ENUM_TURNOUTS, "Turnouts", "Enumerate Turnouts")
-		menuEnum.Append(MENU_ENUM_SIGNALS, "Signals", "Enumerate Signals")
-		menuBar.Append(menuEnum, "Enumerate")
+		menuAnn = wx.Menu()
+		menuAnn.Append(MENU_ANN_TURNOUTS, "Turnouts", "Annotate Turnouts")
+		menuAnn.Append(MENU_ANN_SIGNALS, "Signals", "Annotate Signals")
+		menuBar.Append(menuAnn, "Annotate")
 		
 		self.SetMenuBar(menuBar)
 
 		self.Bind(wx.EVT_MENU, self.menuFileOpen, id=MENU_FILE_OPEN)
 		self.Bind(wx.EVT_MENU, self.menuFileSave, id=MENU_FILE_SAVE)
 		self.Bind(wx.EVT_MENU, self.menuFileSaveAs, id=MENU_FILE_SAVEAS)
-		self.Bind(wx.EVT_MENU, self.menuEnumTurnouts, id=MENU_ENUM_TURNOUTS)
-		self.Bind(wx.EVT_MENU, self.menuEnumSignals, id=MENU_ENUM_SIGNALS)
+		self.Bind(wx.EVT_MENU, self.menuAnnotateTurnouts, id=MENU_ANN_TURNOUTS)
+		self.Bind(wx.EVT_MENU, self.menuAnnotateSignals, id=MENU_ANN_SIGNALS)
 
 		
-		self.bmps = BitMaps(os.path.join(cmdFolder, "bitmaps"))
+		self.bmps = BitMaps(os.path.join("..", "bitmaps"))
 		pm = PalletteMap(self.bmps)
 		self.pallettes = {
 			'master':   pm.getPalletteMaster(),
@@ -157,6 +157,10 @@ class MyFrame(wx.Frame):
 		self.modified = False
 		self.setWindowTitle()	
 		self.setStatusBar("File %s saved" % self.currentFile)
+		
+		annFn = os.path.splitext(self.currentFile)[0] + ".json"
+		with open(annFn, 'w') as f:
+			json.dump(self.annotations, f, sort_keys=True, indent=4)
 				
 	def menuFileOpen(self, _):
 		if self.modified:
@@ -191,13 +195,26 @@ class MyFrame(wx.Frame):
 		mapArray = [x.strip() for x in inlns]
 		self.canvas.loadCanvas(mapArray)
 		
-	def menuEnumTurnouts(self, _):
-		toList = self.canvas.enumerateTurnouts()
-		print("%d turnouts found" % len(toList))
-		for to in toList:
-			print(str(to))
+		annFn = os.path.splitext(self.currentFile)[0] + ".json"
+		with open(annFn, "r") as fp:
+			try:
+				self.annotations = json.load(fp)
+			except IOError:
+				dlg = wx.MessageDialog(self.parent, "Unable to open (%s) for reading" % path,
+						'I/O Error', wx.OK | wx.ICON_INFORMATION)
+				dlg.ShowModal()
+				dlg.Destroy()
+				self.annotations = {"turnouts": {}, "signals": {}, "blocks": {}, "labels": {} }
+
 		
-	def menuEnumSignals(self, _):
+	def menuAnnotateTurnouts(self, _):
+		toList = self.canvas.enumerateTurnouts()
+		dlg = AnnotateTurnoutsDlg(self, toList)
+		dlg.ShowModal()
+		dlg.Destroy()
+		self.setModified()
+		
+	def menuAnnotateSignals(self, _):
 		sgList = self.canvas.enumerateSignals()
 		print("%d signals found" % len(sgList))
 		for sg in sgList:
