@@ -1,84 +1,323 @@
 {
-    "blocks": {},
+    "blocks": {
+        "blockends": {
+            "r10c15": {
+                "blockname": "Y10",
+                "col": 15,
+                "row": 10
+            },
+            "r10c19": {
+                "blockname": "Y10",
+                "col": 19,
+                "row": 10
+            },
+            "r10c20": {
+                "blockname": "",
+                "col": 20,
+                "row": 10
+            },
+            "r12c15": {
+                "blockname": "",
+                "col": 15,
+                "row": 12
+            },
+            "r12c19": {
+                "blockname": "",
+                "col": 19,
+                "row": 12
+            },
+            "r12c20": {
+                "blockname": "",
+                "col": 20,
+                "row": 12
+            },
+            "r14c15": {
+                "blockname": "",
+                "col": 15,
+                "row": 14
+            },
+            "r14c19": {
+                "blockname": "",
+                "col": 19,
+                "row": 14
+            },
+            "r14c20": {
+                "blockname": "",
+                "col": 20,
+                "row": 14
+            },
+            "r16c15": {
+                "blockname": "",
+                "col": 15,
+                "row": 16
+            },
+            "r16c19": {
+                "blockname": "",
+                "col": 19,
+                "row": 16
+            },
+            "r16c20": {
+                "blockname": "",
+                "col": 20,
+                "row": 16
+            },
+            "r18c48": {
+                "blockname": "",
+                "col": 48,
+                "row": 18
+            },
+            "r18c49": {
+                "blockname": "",
+                "col": 49,
+                "row": 18
+            },
+            "r20c00": {
+                "blockname": "",
+                "col": 0,
+                "row": 20
+            },
+            "r20c01": {
+                "blockname": "",
+                "col": 1,
+                "row": 20
+            },
+            "r22c26": {
+                "blockname": "",
+                "col": 26,
+                "row": 22
+            },
+            "r22c27": {
+                "blockname": "",
+                "col": 27,
+                "row": 22
+            },
+            "r22c34": {
+                "blockname": "",
+                "col": 34,
+                "row": 22
+            },
+            "r24c26": {
+                "blockname": "",
+                "col": 26,
+                "row": 24
+            },
+            "r24c27": {
+                "blockname": "",
+                "col": 27,
+                "row": 24
+            },
+            "r24c34": {
+                "blockname": "",
+                "col": 34,
+                "row": 24
+            },
+            "r26c26": {
+                "blockname": "",
+                "col": 26,
+                "row": 26
+            },
+            "r26c27": {
+                "blockname": "",
+                "col": 27,
+                "row": 26
+            },
+            "r26c34": {
+                "blockname": "",
+                "col": 34,
+                "row": 26
+            },
+            "r28c26": {
+                "blockname": "",
+                "col": 26,
+                "row": 28
+            },
+            "r28c27": {
+                "blockname": "",
+                "col": 27,
+                "row": 28
+            },
+            "r28c34": {
+                "blockname": "",
+                "col": 34,
+                "row": 28
+            }
+        },
+        "blocks": {}
+    },
     "labels": {},
-    "signals": {},
-    "turnouts": {
-        "r12c38": {
-            "col": 38,
+    "signals": {
+        "r09c20": {
+            "adjx": 0,
+            "adjy": 0,
+            "col": 20,
             "label": "1",
             "offsetc": 1,
+            "offsetr": 0,
+            "row": 9
+        },
+        "r11c20": {
+            "adjx": 0,
+            "adjy": 0,
+            "col": 20,
+            "label": "2",
+            "offsetc": 1,
+            "offsetr": 0,
+            "row": 11
+        },
+        "r13c20": {
+            "adjx": 0,
+            "adjy": 0,
+            "col": 20,
+            "label": "3",
+            "offsetc": 1,
+            "offsetr": 0,
+            "row": 13
+        },
+        "r15c20": {
+            "adjx": 0,
+            "adjy": 0,
+            "col": 20,
+            "label": "4",
+            "offsetc": 1,
+            "offsetr": 0,
+            "row": 15
+        },
+        "r17c49": {
+            "adjx": 10,
+            "adjy": 0,
+            "col": 49,
+            "label": "5",
+            "offsetc": -1,
+            "offsetr": 0,
+            "row": 17
+        },
+        "r21c00": {
+            "adjx": 0,
+            "adjy": 0,
+            "col": 0,
+            "label": "6",
+            "offsetc": 1,
+            "offsetr": 0,
+            "row": 21
+        },
+        "r23c26": {
+            "adjx": 0,
+            "adjy": 0,
+            "col": 26,
+            "label": "7",
+            "offsetc": 1,
+            "offsetr": 0,
+            "row": 23
+        },
+        "r25c26": {
+            "adjx": 0,
+            "adjy": 0,
+            "col": 26,
+            "label": "8",
+            "offsetc": 1,
+            "offsetr": 0,
+            "row": 25
+        },
+        "r27c26": {
+            "adjx": 0,
+            "adjy": 0,
+            "col": 26,
+            "label": "9",
+            "offsetc": 1,
+            "offsetr": 0,
+            "row": 27
+        },
+        "r29c26": {
+            "adjx": 0,
+            "adjy": 0,
+            "col": 26,
+            "label": "10",
+            "offsetc": 1,
+            "offsetr": 0,
+            "row": 29
+        }
+    },
+    "turnouts": {
+        "r12c38": {
+            "adjx": 0,
+            "adjy": 0,
+            "col": 38,
+            "label": "1",
+            "offsetc": 0,
             "offsetr": 1,
             "row": 12
         },
         "r14c41": {
+            "adjx": 0,
+            "adjy": 0,
             "col": 41,
             "label": "2",
             "offsetc": 0,
-            "offsetr": 0,
+            "offsetr": 1,
             "row": 14
         },
         "r16c44": {
+            "adjx": 0,
+            "adjy": 0,
             "col": 44,
             "label": "3",
             "offsetc": 0,
-            "offsetr": 0,
+            "offsetr": 1,
             "row": 16
         },
         "r18c47": {
+            "adjx": 0,
+            "adjy": 0,
             "col": 47,
             "label": "4",
             "offsetc": 0,
-            "offsetr": 0,
+            "offsetr": 1,
             "row": 18
         },
         "r20c02": {
+            "adjx": 0,
+            "adjy": 5,
             "col": 2,
             "label": "5",
             "offsetc": 0,
-            "offsetr": 0,
+            "offsetr": -1,
             "row": 20
         },
         "r22c05": {
+            "adjx": 0,
+            "adjy": 0,
             "col": 5,
             "label": "6",
             "offsetc": 0,
-            "offsetr": 0,
-            "row": 22
-        },
-        "r22c34": {
-            "col": 34,
-            "label": "6",
-            "offsetc": 0,
-            "offsetr": 0,
+            "offsetr": 1,
             "row": 22
         },
         "r24c08": {
+            "adjx": 0,
+            "adjy": 0,
             "col": 8,
             "label": "8",
             "offsetc": 0,
-            "offsetr": 0,
+            "offsetr": 1,
             "row": 24
         },
         "r26c11": {
+            "adjx": 0,
+            "adjy": 0,
             "col": 11,
             "label": "9",
             "offsetc": 0,
-            "offsetr": 0,
+            "offsetr": 1,
             "row": 26
         },
-        "r27c35": {
-            "col": 35,
-            "label": "",
+        "r31c31": {
+            "adjx": 0,
+            "adjy": 0,
+            "col": 31,
+            "label": "99",
             "offsetc": 0,
-            "offsetr": 0,
-            "row": 27
-        },
-        "r30c37": {
-            "col": 37,
-            "label": "",
-            "offsetc": 0,
-            "offsetr": 0,
-            "row": 30
+            "offsetr": 1,
+            "row": 31
         }
     }
 }

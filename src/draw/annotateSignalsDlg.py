@@ -1,21 +1,20 @@
 import wx
 
-from utilities import buildKey
-		
+from utilities import buildKey		
 
-class AnnotateTurnoutsDlg(wx.Dialog):
-	def __init__(self, parent, tolist):
-		wx.Dialog.__init__(self, parent, wx.ID_ANY, "Turnout Annotation")
+class AnnotateSignalsDlg(wx.Dialog):
+	def __init__(self, parent, sglist):
+		wx.Dialog.__init__(self, parent, wx.ID_ANY, "Signal Annotation")
 		self.Bind(wx.EVT_CLOSE, self.onClose)
 		
 		self.parent = parent
-		self.annotations = self.parent.annotations["turnouts"]
+		self.annotations = self.parent.annotations["signals"]
 		self.modified = False
 		sz = wx.BoxSizer(wx.VERTICAL)
 		sz.AddSpacer(20)
 		font = wx.Font(70, wx.FONTFAMILY_TELETYPE, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL)
 		
-		self.coords = [x.getPos() for x in tolist]
+		self.coords = [x.getPos() for x in sglist]
 		validKeys = []
 		for c, r in self.coords:
 			k = buildKey(r, c)
@@ -34,14 +33,14 @@ class AnnotateTurnoutsDlg(wx.Dialog):
 			for k in invalidKeys:
 				del(self.annotations[k])
 				
-		self.toList = ["r: %2d  c: %2d" % (x[1], x[0]) for x in self.coords]
+		self.sgList = ["r: %2d  c: %2d" % (x[1], x[0]) for x in self.coords]
 		
-		self.lbTurnouts = wx.ListBox(self, wx.ID_ANY, choices=self.toList, style=wx.LB_SINGLE, size=(-1, 240))
-		self.lbTurnouts.SetFont(font)
-		self.Bind(wx.EVT_LISTBOX, self.onListBox, self.lbTurnouts)
+		self.lbSignals = wx.ListBox(self, wx.ID_ANY, choices=self.sgList, style=wx.LB_SINGLE, size=(-1, 240))
+		self.lbSignals.SetFont(font)
+		self.Bind(wx.EVT_LISTBOX, self.onListBox, self.lbSignals)
 
 		if len(self.coords) > 0:
-			self.lbTurnouts.SetSelection(0)
+			self.lbSignals.SetSelection(0)
 			col = self.coords[0][0]
 			row = self.coords[0][1]
 			self.parent.canvas.setCursorAt(row, col)
@@ -83,7 +82,7 @@ class AnnotateTurnoutsDlg(wx.Dialog):
 		self.Bind(wx.EVT_SPINCTRL, self.onSpinAdjY, self.scAdjY)
 			
 		hsz = wx.BoxSizer(wx.HORIZONTAL)
-		hsz.Add(self.lbTurnouts)
+		hsz.Add(self.lbSignals)
 		hsz.AddSpacer(10)
 		
 		vsz = wx.BoxSizer(wx.VERTICAL)
@@ -115,7 +114,7 @@ class AnnotateTurnoutsDlg(wx.Dialog):
 		self.Fit()
 		
 	def onListBox(self, _):
-		dx = self.lbTurnouts.GetSelection()
+		dx = self.lbSignals.GetSelection()
 		if dx == wx.NOT_FOUND:
 			return
 		
@@ -151,7 +150,7 @@ class AnnotateTurnoutsDlg(wx.Dialog):
 		if self.currentKey:
 			self.modified = True
 			self.annotations[self.currentKey]["offsetc"] = self.scOffsetC.GetValue()
-
+			
 	def onSpinAdjX(self, _):
 		if self.currentKey:
 			self.modified = True

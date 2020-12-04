@@ -1,5 +1,5 @@
 from tileTypes import TTYPE_NORMAL, TTYPE_OCCUPIED, TTYPE_ROUTED, TTYPE_EASTROUTED, TTYPE_WESTROUTED, \
-				TTYPE_UPROUTED, TTYPE_DOWNROUTED, ADJ_WEST, ADJ_EAST, ADJ_REVERSED
+				TTYPE_UPROUTED, TTYPE_DOWNROUTED, ADJ_WEST, ADJ_REVERSED
 
 class TrackElement:
 	def __init__(self, tileType, row, col):
@@ -110,7 +110,6 @@ class TrackElement:
 				elif self.downRouted:
 					ttype = TTYPE_DOWNROUTED
 				else:
-					print("Huh??")
 					ttype = TTYPE_ROUTED
 			else:
 				ttype = TTYPE_ROUTED

@@ -23,7 +23,6 @@ class CanvasTile:
 		return self.bmp
 		
 	def onClick(self, evt):
-		print("click")
 		self.cbClick(self.bmp, self.row, self.col, True)
 		
 	def onRightClick(self, evt):
@@ -48,6 +47,9 @@ class Signal:
 		self.char = c
 		self.pos = pos
 		
+	def getPos(self):
+		return self.pos
+		
 	def __str__(self):
 		return "Signal %s at position: c%d r%d" % (self.char, self.pos[0], self.pos[1])
 	
@@ -66,6 +68,7 @@ class Canvas(wx.Panel):
 		self.cursor2 = bmps.cursor2
 		
 		self.pendingOperation = None
+		self.stLabels = {}
 		
 		self.bmpCursor = wx.StaticBitmap(self, wx.ID_ANY, self.cursor1, size=(BMPDIM[0]+4, BMPDIM[1]+4), style=0)
 		self.currentCursor = self.cursor1
@@ -109,6 +112,64 @@ class Canvas(wx.Panel):
 		t.SetBackgroundColour(wx.Colour(0, 0, 0))
 		t.SetForegroundColour(wx.Colour(255, 128, 20))
 
+	def updateLabel(self, key, row, col, adjx, adjy, text):
+		if key not in self.stLabels.keys():
+			return
+		
+		st = self.stLabels[key]
+		st.SetLabel(text)
+		
+		ct = self.canvasTiles[row][col]
+		b = ct.getBmp()
+		p = b.GetPosition()
+		p[0] += adjx
+		p[1] += adjy
+		
+		st.SetPosition(p)
+		
+	def placeLabel(self, key, row, col, adjx, adjy, text, font=None, fg=None, bg=None):
+		if key in self.stLabels.keys():
+			st = self.stLabels[key]
+			st.SetLabel(text)
+		else:
+			st = wx.StaticText(self, wx.ID_ANY, text)
+			self.stLabels[key] = st
+			
+		ct = self.canvasTiles[row][col]
+		b = ct.getBmp()
+		p = b.GetPosition()
+		p[0] += adjx
+		p[1] += adjy
+		
+		st.SetPosition(p)
+		
+		if font is None:
+			st.SetFont(wx.Font(70, wx.FONTFAMILY_TELETYPE, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL))
+		else:
+			st.SetFont(font)
+		
+		if fg is None:
+			st.SetForegroundColour(wx.Colour(255, 128, 20))
+		else:
+			st.SetForegroundColour(fg)
+			
+		if bg is None:
+			st.SetBackgroundColour(wx.Colour(0, 0, 0))
+		else:
+			st.SetBackgroundColour(bg)
+
+	def purgeUnusedLabels(self, allkeys):
+		purgeList = []
+		for k in self.stLabels.keys():
+			if k not in allkeys:
+				purgeList.append(k)
+				
+		for k in purgeList:
+			try:
+				self.stLabels[k].Destroy()
+			except:
+				pass
+			del self.stLabels[k]
 			
 	def enumerateTurnouts(self):
 		results = []
@@ -125,6 +186,15 @@ class Canvas(wx.Panel):
 			for c in range(colsCanvas):
 				t = self.tileArray[r][c]
 				if t in [ '0', '1' ]:
+					results.append(Signal(t, (c, r)))
+		return results
+
+	def enumerateEOBs(self):
+		results = []
+		for r in range(rowsCanvas):
+			for c in range(colsCanvas):
+				t = self.tileArray[r][c]
+				if t in [ 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x' ]:
 					results.append(Signal(t, (c, r)))
 		return results
 

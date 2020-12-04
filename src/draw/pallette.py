@@ -15,25 +15,27 @@ class PalletteTile:
 	def onRightClick(self, evt):
 		self.cb(self.tid, False)
 
-class SzPallette(wx.BoxSizer):
+class Pallette(wx.Panel):
 	def __init__(self, parent, pallettes, bmps):
+		wx.Panel.__init__(self, parent, wx.ID_ANY)	
 		self.parent = parent
 		self.masterPallette = pallettes['master']
-		wx.BoxSizer.__init__(self, wx.VERTICAL)
-		self.AddSpacer(10)
+		
+		sz = wx.BoxSizer(wx.VERTICAL)
+		sz.AddSpacer(30)
 		
 		hsz = wx.BoxSizer(wx.HORIZONTAL)
 		hsz.AddSpacer(10)
-		hsz.Add(wx.StaticText(self.parent, wx.ID_ANY, "Current Tool: "))
+		hsz.Add(wx.StaticText(self, wx.ID_ANY, "Current Tool: "))
 		self.currentToolBmp = self.masterPallette['.']
-		self.bmCurrentTool = wx.StaticBitmap(self.parent, wx.ID_ANY, self.currentToolBmp, size=BMPDIM, style=0)
+		self.bmCurrentTool = wx.StaticBitmap(self, wx.ID_ANY, self.currentToolBmp, size=BMPDIM, style=0)
 		self.currentTool = '.'
 		hsz.Add(self.bmCurrentTool)
 		
-		self.Add(hsz)
-		self.AddSpacer(10)
+		sz.Add(hsz)
+		sz.AddSpacer(10)
 		
-		gbox = wx.StaticBox(self.parent, wx.ID_ANY, " General ")
+		gbox = wx.StaticBox(self, wx.ID_ANY, " General ")
 		topBorder, botBorder = gbox.GetBordersForSizer()
 		bsz = wx.BoxSizer(wx.VERTICAL)
 		bsz.AddSpacer(topBorder+3)
@@ -82,10 +84,10 @@ class SzPallette(wx.BoxSizer):
 		bsz.AddSpacer(botBorder)
 		gbox.SetSizer(bsz)
 		
-		self.Add(gbox, 0, wx.EXPAND|wx.ALL, 5)
-		self.AddSpacer(20)
+		sz.Add(gbox, 0, wx.EXPAND|wx.ALL, 5)
+		sz.AddSpacer(20)
 				
-		ebox = wx.StaticBox(self.parent, wx.ID_ANY, " Track ")
+		ebox = wx.StaticBox(self, wx.ID_ANY, " Track ")
 		topBorder, botBorder = ebox.GetBordersForSizer()
 		bsz = wx.BoxSizer(wx.VERTICAL)
 		bsz.AddSpacer(topBorder+3)
@@ -132,56 +134,71 @@ class SzPallette(wx.BoxSizer):
 		bsz.AddSpacer(botBorder)
 		ebox.SetSizer(bsz)
 		
-		self.Add(ebox, 0, wx.EXPAND|wx.ALL, 5)
+		sz.Add(ebox, 0, wx.EXPAND|wx.ALL, 5)
 
-		self.AddSpacer(20)
+		sz.AddSpacer(20)
 
 		hsz = wx.BoxSizer(wx.HORIZONTAL)
 		hsz.AddSpacer(20)		
-		b = wx.BitmapButton(self.parent, wx.ID_ANY, bmps.rowinsert)
+		b = wx.BitmapButton(self, wx.ID_ANY, bmps.rowinsert)
 		b.SetToolTip("Insert Row")
 		b.Bind(wx.EVT_BUTTON, self.parent.onRowInsert, b)
 		hsz.Add(b)
 		hsz.AddSpacer(10)
-		b = wx.BitmapButton(self.parent, wx.ID_ANY, bmps.rowdelete)
+		b = wx.BitmapButton(self, wx.ID_ANY, bmps.rowdelete)
 		b.SetToolTip("Delete Row")
 		b.Bind(wx.EVT_BUTTON, self.parent.onRowDelete, b)
 		hsz.Add(b)
 		hsz.AddSpacer(20)
-		self.Add(hsz)
-		self.AddSpacer(10)
+		sz.Add(hsz)
+		sz.AddSpacer(10)
 
 		hsz = wx.BoxSizer(wx.HORIZONTAL)
 		hsz.AddSpacer(20)		
-		b = wx.BitmapButton(self.parent, wx.ID_ANY, bmps.colinsert)
+		b = wx.BitmapButton(self, wx.ID_ANY, bmps.colinsert)
 		b.SetToolTip("Insert Column")
 		b.Bind(wx.EVT_BUTTON, self.parent.onColInsert, b)
 		hsz.Add(b)
 		hsz.AddSpacer(10)
-		b = wx.BitmapButton(self.parent, wx.ID_ANY, bmps.coldelete)
+		b = wx.BitmapButton(self, wx.ID_ANY, bmps.coldelete)
 		b.SetToolTip("Delete Column")
 		b.Bind(wx.EVT_BUTTON, self.parent.onColDelete, b)
 		hsz.Add(b)
 		hsz.AddSpacer(20)
-		self.Add(hsz)
-		self.AddSpacer(10)
+		sz.Add(hsz)
+		sz.AddSpacer(10)
 
 		hsz = wx.BoxSizer(wx.HORIZONTAL)
 		hsz.AddSpacer(20)		
-		b = wx.BitmapButton(self.parent, wx.ID_ANY, bmps.cancelop)
+		b = wx.BitmapButton(self, wx.ID_ANY, bmps.cancelop)
 		b.SetToolTip("Cancel pending operation")
 		b.Bind(wx.EVT_BUTTON, self.parent.onOperationCancel, b)
 		hsz.Add(b)
 		hsz.AddSpacer(20)
-		self.Add(hsz)
+		sz.Add(hsz)
+		sz.AddSpacer(30)
+		
+		hsz = wx.BoxSizer(wx.HORIZONTAL)
+		hsz.AddSpacer(20)		
+		b = wx.BitmapButton(self, wx.ID_ANY, bmps.label)
+		b.SetToolTip("Place Labels")
+		b.Bind(wx.EVT_BUTTON, self.parent.onPlaceLabels, b)
+		hsz.Add(b)
+		hsz.AddSpacer(20)
+		sz.Add(hsz)
+		sz.AddSpacer(30)
+		
+		hsz = wx.BoxSizer(wx.HORIZONTAL)
+		hsz.AddSpacer(20)
+		hsz.Add(sz)
+		hsz.AddSpacer(20)
+		self.SetSizer(hsz)
 		
 	def palletteClick(self, tid, left):
 		if left:
 			self.currentTool = tid
 			self.currentToolBmp = self.masterPallette[tid]
 			self.bmCurrentTool.SetBitmap(self.currentToolBmp)
-		else:
-			print("right click on (%s)" % tid)
 			
 	def getCurrentTool(self):
 		return self.currentTool, self.currentToolBmp

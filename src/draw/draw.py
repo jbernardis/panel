@@ -5,10 +5,12 @@ import wx
 import json
 
 from bitmaps import BitMaps
-from szpallette import SzPallette
+from pallette import Pallette
 from canvas import Canvas, PENDING_ROW_DELETE, PENDING_ROW_INSERT, PENDING_COL_DELETE, PENDING_COL_INSERT
 from pallettemap import PalletteMap
 from annotateTurnoutsDlg import AnnotateTurnoutsDlg
+from annotateSignalsDlg import AnnotateSignalsDlg
+from annotateBlocksDlg import AnnotateBlocksDlg 
 
 PANEL = (50, 10)
 
@@ -18,6 +20,8 @@ MENU_FILE_OPEN = 103
 
 MENU_ANN_TURNOUTS = 201
 MENU_ANN_SIGNALS = 202
+MENU_ANN_BLOCKS = 203
+MENU_ANN_LABELS = 204
 
 class MyFrame(wx.Frame):
 	def __init__(self):
@@ -30,6 +34,18 @@ class MyFrame(wx.Frame):
 		self.currentEnd = [49, 38]
 		self.modified = False
 		self.annotations = {}
+		
+		self.fontTurnouts = wx.Font(10, wx.FONTFAMILY_TELETYPE, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL)
+		self.colorTurnouts = wx.Colour(255, 128, 20)
+		
+		self.fontSignals = wx.Font(8, wx.FONTFAMILY_TELETYPE, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL)
+		self.colorSignals = wx.Colour(255, 255, 0)
+		
+		self.fontBlocks = wx.Font(70, wx.FONTFAMILY_TELETYPE, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL)
+		self.colorBlocks = wx.Colour(255, 128, 20)
+		
+		self.fontLabels = wx.Font(70, wx.FONTFAMILY_TELETYPE, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL)
+		self.colorLabels = wx.Colour(255, 128, 20)
 		
 		self.statusBar = self.CreateStatusBar(2)
 		
@@ -45,6 +61,8 @@ class MyFrame(wx.Frame):
 		menuAnn = wx.Menu()
 		menuAnn.Append(MENU_ANN_TURNOUTS, "Turnouts", "Annotate Turnouts")
 		menuAnn.Append(MENU_ANN_SIGNALS, "Signals", "Annotate Signals")
+		menuAnn.Append(MENU_ANN_BLOCKS, "Blocks", "Annotate Blocks")
+		menuAnn.Append(MENU_ANN_LABELS, "Labels", "Define/Modify Labels")
 		menuBar.Append(menuAnn, "Annotate")
 		
 		self.SetMenuBar(menuBar)
@@ -54,6 +72,8 @@ class MyFrame(wx.Frame):
 		self.Bind(wx.EVT_MENU, self.menuFileSaveAs, id=MENU_FILE_SAVEAS)
 		self.Bind(wx.EVT_MENU, self.menuAnnotateTurnouts, id=MENU_ANN_TURNOUTS)
 		self.Bind(wx.EVT_MENU, self.menuAnnotateSignals, id=MENU_ANN_SIGNALS)
+		self.Bind(wx.EVT_MENU, self.menuAnnotateBlocks, id=MENU_ANN_BLOCKS)
+		self.Bind(wx.EVT_MENU, self.menuAnnotateLabels, id=MENU_ANN_LABELS)
 
 		
 		self.bmps = BitMaps(os.path.join("..", "bitmaps"))
@@ -66,14 +86,14 @@ class MyFrame(wx.Frame):
 			'turnout':   pm.getPalletteTurnout()
 			}
 		
-		self.szPal = SzPallette(self, self.pallettes, self.bmps)
+		self.pallette = Pallette(self, self.pallettes, self.bmps)
 		
 		self.canvas = Canvas(self, self.pallettes, self.bmps)
 		
 		sz = wx.BoxSizer(wx.HORIZONTAL)
 		sz.AddSpacer(20)
-		sz.Add(self.szPal)
-		sz.AddSpacer(50)
+		sz.Add(self.pallette)
+		sz.AddSpacer(20)
 		sz.Add(self.canvas)
 		sz.AddSpacer(20)
 		
@@ -106,6 +126,33 @@ class MyFrame(wx.Frame):
 	def onOperationCancel(self, _):
 		self.setStatusBar("")
 		self.canvas.setPendingOperation(None)
+		
+	def onPlaceLabels(self, _):
+		allKeys = []
+
+		toList = self.annotations["turnouts"]
+		for toKey in toList.keys():
+			tk = "T" + toKey
+			allKeys.append(tk)
+			self.canvas.placeLabel(tk,
+				toList[toKey]["row"] + toList[toKey]["offsetr"],
+				toList[toKey]["col"] + toList[toKey]["offsetc"],
+				toList[toKey]["adjx"], toList[toKey]["adjy"],
+				toList[toKey]["label"],
+				font=self.fontTurnouts, fg=self.colorTurnouts)
+			
+		sgList = self.annotations["signals"]
+		for sgKey in sgList.keys():
+			sk = "S" + sgKey
+			allKeys.append(sk)
+			self.canvas.placeLabel(sk, 
+				sgList[sgKey]["row"] + sgList[sgKey]["offsetr"],
+				sgList[sgKey]["col"] + sgList[sgKey]["offsetc"],
+				sgList[sgKey]["adjx"], sgList[sgKey]["adjy"],
+				sgList[sgKey]["label"],
+				font=self.fontSignals, fg=self.colorSignals)
+			
+		self.canvas.purgeUnusedLabels(allKeys)
 		
 	def setWindowTitle(self):
 		t = "Panel Editor"
@@ -204,27 +251,46 @@ class MyFrame(wx.Frame):
 						'I/O Error', wx.OK | wx.ICON_INFORMATION)
 				dlg.ShowModal()
 				dlg.Destroy()
-				self.annotations = {"turnouts": {}, "signals": {}, "blocks": {}, "labels": {} }
-
+				self.annotations = {"turnouts": {}, 
+						"signals": {},
+						"blocks": { 
+							"blockends": {},
+							"blocks": {} },
+						"labels": {} }
+				
 		
 	def menuAnnotateTurnouts(self, _):
 		toList = self.canvas.enumerateTurnouts()
 		dlg = AnnotateTurnoutsDlg(self, toList)
 		dlg.ShowModal()
+		mod = dlg.getStatus()
 		dlg.Destroy()
-		self.setModified()
+		if (mod):
+			self.setModified()
 		
 	def menuAnnotateSignals(self, _):
 		sgList = self.canvas.enumerateSignals()
-		print("%d signals found" % len(sgList))
-		for sg in sgList:
-			print(str(sg))
+		dlg = AnnotateSignalsDlg(self, sgList)
+		dlg.ShowModal()
+		mod = dlg.getStatus()
+		dlg.Destroy()
+		if (mod):
+			self.setModified()	
 			
-		self.canvas.addText(23, 27, "Sample Text")
-		
+	def menuAnnotateBlocks(self, _):
+		eobList = self.canvas.enumerateEOBs()
+		dlg = AnnotateBlocksDlg(self, eobList)
+		dlg.ShowModal()
+		mod = dlg.getStatus()
+		dlg.Destroy()
+		if (mod):
+			self.setModified()	
+	
+	def menuAnnotateLabels(self, _):
+		print("labels")	
 		
 	def getCurrentTool(self):
-		return self.szPal.getCurrentTool()
+		return self.pallette.getCurrentTool()
 	
 	def setStatusBar(self, txt, field=0):
 		self.statusBar.SetStatusText(txt, field)

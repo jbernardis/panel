@@ -1,8 +1,8 @@
 #!/bin/env python
 
-
 import os
 import wx
+import json
 
 from bitmaps import BitMaps
 from tileMap import TileMap
@@ -23,7 +23,19 @@ class MyFrame(wx.Frame):
 		
 		self.bmps = BitMaps(os.path.join("..", "bitmaps"))
 		self.tileMap = TileMap(self.bmps)
+				
+		self.fontTurnouts = wx.Font(10, wx.FONTFAMILY_TELETYPE, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL)
+		self.colorTurnouts = wx.Colour(255, 128, 20)
 		
+		self.fontSignals = wx.Font(8, wx.FONTFAMILY_TELETYPE, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL)
+		self.colorSignals = wx.Colour(255, 255, 0)
+		
+		self.fontBlocks = wx.Font(70, wx.FONTFAMILY_TELETYPE, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL)
+		self.colorBlocks = wx.Colour(255, 128, 20)
+		
+		self.fontLabels = wx.Font(70, wx.FONTFAMILY_TELETYPE, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL)
+		self.colorLabels = wx.Colour(255, 128, 20)
+
 		self.loadData('panel')
 				
 		rows = len(self.mapArray)
@@ -64,10 +76,53 @@ class MyFrame(wx.Frame):
 				
 			sz.Add(rowsz)
 			self.panelMap.append(rowMap)
-			
+
 		self.SetSizer(sz)
 		self.Fit()
+
+		self.stLabels = []
+		for to in self.annotations["turnouts"].values():
+			self.placeLabel( 
+				to["row"] + to["offsetr"],
+				to["col"] + to["offsetc"],
+				to["adjx"], to["adjy"],
+				to["label"],
+				font=self.fontTurnouts, fg=self.colorTurnouts)
+			
+		for sg in self.annotations["signals"].values():
+			self.placeLabel( 
+				sg["row"] + sg["offsetr"],
+				sg["col"] + sg["offsetc"],
+				sg["adjx"], sg["adjy"],
+				sg["label"],
+				font=self.fontSignals, fg=self.colorSignals)
+			
 		
+	def placeLabel(self, row, col, adjx, adjy, text, font=None, fg=None, bg=None):
+		st = wx.StaticText(self, wx.ID_ANY, text)
+		self.stLabels.append(st)
+			
+		b = self.panelMap[row][col][0]
+		p = b.GetPosition()
+		p[0] += adjx
+		p[1] += adjy
+		
+		st.SetPosition(p)
+		
+		if font is None:
+			st.SetFont(wx.Font(70, wx.FONTFAMILY_TELETYPE, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL))
+		else:
+			st.SetFont(font)
+		
+		if fg is None:
+			st.SetForegroundColour(wx.Colour(255, 128, 20))
+		else:
+			st.SetForegroundColour(fg)
+			
+		if bg is None:
+			st.SetBackgroundColour(wx.Colour(0, 0, 0))
+		else:
+			st.SetBackgroundColour(bg)
 		
 	def loadData(self, basename):
 		with open(os.path.join("..", basename + '.arr')) as f:
@@ -85,6 +140,17 @@ class MyFrame(wx.Frame):
 			
 		self.mapArray = [a + '.'*(maxl-len(a)) for a in arr]
 
+		with open(os.path.join("..", basename + '.json'), "r") as fp:
+			try:
+				self.annotations = json.load(fp)
+			except IOError:
+				self.annotations = {"turnouts": {}, 
+						"signals": {},
+						"blocks": { 
+							"blockends": {},
+							"blocks": {} },
+						"labels": {} }
+
 		
 	def tracksMesh(self, te, lastAdj):
 		# return values:
@@ -100,7 +166,6 @@ class MyFrame(wx.Frame):
 				if nadj[0] == revAdj[0]:
 					# incoming leg and reversed leg coming from the same direction
 					# this is impossible
-					print("EE")
 					return False, None, False, 0
 				
 				else:
@@ -117,11 +182,9 @@ class MyFrame(wx.Frame):
 			# coming in on the east leg
 			if te.isTurnout() and te.isReversed():
 				revAdj = te.getAdjacent(ADJ_REVERSED)
-				print("%d -> %d" % (nadj[0], revAdj[0]))
 				if nadj[0] == revAdj[0]:
 					# incoming leg and reversed leg coming from the same direction
 					# this is impossible
-					print("WW")
 					return False, None, False, 0
 				
 				else:
@@ -136,14 +199,12 @@ class MyFrame(wx.Frame):
 		
 		if te.isTurnout() and te.isReversed():
 			nadj = te.getAdjacent(ADJ_REVERSED)
-			print("%s -> %s" % (str(lastAdj), str(nadj)))
 			if lastAdj == nadj:
 				if nadj[0] < 0:
 					return True, ADJ_WEST, True, 0
 				else:
 					return True, ADJ_EAST, True, 0
 			
-		print("DFT")
 		return False, None, False, 0
 		
 	def markRoute(self, rStart, cStart, rtype, eb=True):
