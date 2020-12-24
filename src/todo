@@ -1,9 +1,13 @@
 Panel
-3) have a way to link with external logic for controlling turnouta and signals
-4) szPallette from a sizer to a panel
+3) have a way to link with external logic for controlling turnouts and signals and getting block occupancy reports
 
 
 Draw
-3) save/save as - select rows and columns to save, and at what column/row offset within the file
-4) read in files starting from a given offset column and/or row
-8) clear
+10) general labels
+
+
+some compromise for status line since it doesn't seem to show up on linux
+allow shift left to not automatically add columns
+allow shift right to grow on the left side??
+save x columns??
+

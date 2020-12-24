@@ -12,16 +12,22 @@ from annotateTurnoutsDlg import AnnotateTurnoutsDlg
 from annotateSignalsDlg import AnnotateSignalsDlg
 from annotateBlocksDlg import AnnotateBlocksDlg 
 
+from utilities import buildKey
+from options import Options
+
 PANEL = (50, 10)
 
-MENU_FILE_SAVE = 101
-MENU_FILE_SAVEAS = 102
-MENU_FILE_OPEN = 103
+MENU_FILE_NEW = 101
+MENU_FILE_OPEN = 102
+MENU_FILE_SAVE = 103
+MENU_FILE_SAVEAS = 104
+MENU_FILE_EXIT = 109
 
 MENU_ANN_TURNOUTS = 201
 MENU_ANN_SIGNALS = 202
 MENU_ANN_BLOCKS = 203
 MENU_ANN_LABELS = 204
+
 
 class MyFrame(wx.Frame):
 	def __init__(self):
@@ -34,6 +40,7 @@ class MyFrame(wx.Frame):
 		self.currentEnd = [49, 38]
 		self.modified = False
 		self.annotations = {}
+		self.options = Options()
 		
 		self.fontTurnouts = wx.Font(10, wx.FONTFAMILY_TELETYPE, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL)
 		self.colorTurnouts = wx.Colour(255, 128, 20)
@@ -41,11 +48,11 @@ class MyFrame(wx.Frame):
 		self.fontSignals = wx.Font(8, wx.FONTFAMILY_TELETYPE, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL)
 		self.colorSignals = wx.Colour(255, 255, 0)
 		
-		self.fontBlocks = wx.Font(70, wx.FONTFAMILY_TELETYPE, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL)
-		self.colorBlocks = wx.Colour(255, 128, 20)
+		self.fontBlocks = wx.Font(14, wx.FONTFAMILY_TELETYPE, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL)
+		self.colorBlocks = wx.Colour(255, 20, 20)
 		
-		self.fontLabels = wx.Font(70, wx.FONTFAMILY_TELETYPE, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL)
-		self.colorLabels = wx.Colour(255, 128, 20)
+		self.fontLabels = wx.Font(18, wx.FONTFAMILY_TELETYPE, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL)
+		self.colorLabels = wx.Colour(255, 255, 255)
 		
 		self.statusBar = self.CreateStatusBar(2)
 		
@@ -53,9 +60,13 @@ class MyFrame(wx.Frame):
 
 		# 1st menu from left
 		menuFile = wx.Menu()
-		menuFile.Append(MENU_FILE_OPEN, "Open", "Open an array file")
-		menuFile.Append(MENU_FILE_SAVE, "Save", "Save to current array file")
-		menuFile.Append(MENU_FILE_SAVEAS, "Save As", "Save to a specified array file")
+		menuFile.Append(MENU_FILE_NEW, "New", "Create a new panel")
+		menuFile.Append(MENU_FILE_OPEN, "Open", "Open panel files")
+		menuFile.AppendSeparator()
+		menuFile.Append(MENU_FILE_SAVE, "Save", "Save to current panel files")
+		menuFile.Append(MENU_FILE_SAVEAS, "Save As", "Save to specified panel files")
+		menuFile.AppendSeparator()
+		menuFile.Append(MENU_FILE_EXIT, "Exit", "Exit Program")
 		menuBar.Append(menuFile, "File")
 		
 		menuAnn = wx.Menu()
@@ -67,9 +78,11 @@ class MyFrame(wx.Frame):
 		
 		self.SetMenuBar(menuBar)
 
+		self.Bind(wx.EVT_MENU, self.menuFileNew, id=MENU_FILE_NEW)
 		self.Bind(wx.EVT_MENU, self.menuFileOpen, id=MENU_FILE_OPEN)
 		self.Bind(wx.EVT_MENU, self.menuFileSave, id=MENU_FILE_SAVE)
 		self.Bind(wx.EVT_MENU, self.menuFileSaveAs, id=MENU_FILE_SAVEAS)
+		self.Bind(wx.EVT_MENU, self.onClose, id=MENU_FILE_EXIT)
 		self.Bind(wx.EVT_MENU, self.menuAnnotateTurnouts, id=MENU_ANN_TURNOUTS)
 		self.Bind(wx.EVT_MENU, self.menuAnnotateSignals, id=MENU_ANN_SIGNALS)
 		self.Bind(wx.EVT_MENU, self.menuAnnotateBlocks, id=MENU_ANN_BLOCKS)
@@ -127,33 +140,203 @@ class MyFrame(wx.Frame):
 		self.setStatusBar("")
 		self.canvas.setPendingOperation(None)
 		
-	def onPlaceLabels(self, _):
-		allKeys = []
+	def pendingOpCompleted(self, row, col, delta):
+		self.reKeyAnnotations(row, col, delta)
+		
+	def reKeyAnnotations(self, row, col, delta):
+		print("pending op complete")
+		if col is None:
+			print("re-keying annotations below row %d" % row)
+			
+		elif row is None:
+			print("re-keying annotations to the right of col %d, delta = %d" % (col, delta))
+			
+		elif col is None and row is None:
+			print("invalid arguments")
+			return
+			
+		else:
+			print("nothing to do")
+			return
 
+		# turnouts		
+		toList = self.canvas.enumerateTurnouts()
+		coords = [x.getPos() for x in toList]
+		updateList = {}
+		newKeys = []
+		for c, r in coords:
+			kNew = buildKey(r, c)
+			newKeys.append(kNew)
+			if row is None and c >= col:
+				kOld = buildKey(r, c-delta)
+				print("we need to change key %s to %s" % (kOld, kNew))
+				updateList[kNew] = self.annotations["turnouts"][kOld]
+				updateList[kNew]["col"] = c
+			elif col is None and r >= row:
+				kOld = buildKey(r-delta, c)
+				print("we need to change key %s to %s" % (kOld, kNew))
+				updateList[kNew] = self.annotations["turnouts"][kOld]
+				updateList[kNew]["row"] = r
+				
+		kl = list(self.annotations["turnouts"].keys())
+		for k in kl:
+			if k not in newKeys:
+				print("purging key %s" % k)
+				del(self.annotations["turnouts"][k])
+				
+		print(str(updateList))
+
+		if len(updateList) > 0:
+			self.annotations["turnouts"].update(updateList)
+			self.placeTurnoutLabels()
+
+		sgList = self.canvas.enumerateSignals()
+		coords = [x.getPos() for x in sgList]
+		updateList = {}
+		newKeys = []
+		for c, r in coords:
+			kNew = buildKey(r, c)
+			newKeys.append(kNew)
+			if row is None and c >= col:
+				kOld = buildKey(r, c-delta)
+				print("we need to change key %s to %s" % (kOld, kNew))
+				updateList[kNew] = self.annotations["signals"][kOld]
+				updateList[kNew]["col"] = c
+			elif col is None and r >= row:
+				kOld = buildKey(r-delta, c)
+				print("we need to change key %s to %s" % (kOld, kNew))
+				updateList[kNew] = self.annotations["signals"][kOld]
+				updateList[kNew]["row"] = r
+				
+		kl = list(self.annotations["signals"].keys())
+		for k in kl:
+			if k not in newKeys:
+				print("purging key %s" % k)
+				del(self.annotations["signals"][k])
+				
+		print(str(updateList))
+
+		if len(updateList) > 0:
+			self.annotations["signals"].update(updateList)
+			self.placeSignalLabels()
+
+		beList = self.canvas.enumerateEOBs()
+		coords = [x.getPos() for x in beList]
+		updateList = {}
+		newKeys = []
+		for c, r in coords:
+			kNew = buildKey(r, c)
+			newKeys.append(kNew)
+			if row is None and c >= col:
+				kOld = buildKey(r, c-delta)
+				print("we need to change key %s to %s" % (kOld, kNew))
+				updateList[kNew] = self.annotations["blocks"]["blockends"][kOld]
+				updateList[kNew]["col"] = c
+			elif col is None and r >= row:
+				kOld = buildKey(r-delta, c)
+				print("we need to change key %s to %s" % (kOld, kNew))
+				updateList[kNew] = self.annotations["blocks"]["blockends"][kOld]
+				updateList[kNew]["row"] = r
+
+		kl = list(self.annotations["blocks"]["blockends"].keys())
+		for k in kl:
+			if k not in newKeys:
+				print("purging key %s" % k)
+				del(self.annotations["blocks"]["blockends"][k])
+				
+		if len(updateList) > 0:
+			self.annotations["blocks"]["blockends"].update(updateList)
+		
+		self.placeBlockLabels()
+		self.placeLabelLabels()
+
+		
+	def onPlaceLabels(self, _):
+		self.placeLabels()
+		
+	def onClearLabels(self, _):
+		self.canvas.clearAllLabels()
+		
+	def placeLabels(self):
+		self.placeTurnoutLabels()
+		self.placeSignalLabels()
+		self.placeBlockLabels()
+		self.placeLabelLabels()
+					
+	def placeTurnoutLabels(self):
+		lkeys = []
+		prefix = "T"
 		toList = self.annotations["turnouts"]
 		for toKey in toList.keys():
-			tk = "T" + toKey
-			allKeys.append(tk)
+			tk = prefix + toKey
+			lkeys.append(tk)
 			self.canvas.placeLabel(tk,
 				toList[toKey]["row"] + toList[toKey]["offsetr"],
 				toList[toKey]["col"] + toList[toKey]["offsetc"],
 				toList[toKey]["adjx"], toList[toKey]["adjy"],
 				toList[toKey]["label"],
 				font=self.fontTurnouts, fg=self.colorTurnouts)
-			
+		self.canvas.purgeUnusedLabels(lkeys, prefix)
+	
+	def placeSignalLabels(self):
+		lkeys = []
+		prefix = "S"
 		sgList = self.annotations["signals"]
 		for sgKey in sgList.keys():
-			sk = "S" + sgKey
-			allKeys.append(sk)
+			sk = prefix + sgKey
+			lkeys.append(sk)
 			self.canvas.placeLabel(sk, 
 				sgList[sgKey]["row"] + sgList[sgKey]["offsetr"],
 				sgList[sgKey]["col"] + sgList[sgKey]["offsetc"],
 				sgList[sgKey]["adjx"], sgList[sgKey]["adjy"],
 				sgList[sgKey]["label"],
 				font=self.fontSignals, fg=self.colorSignals)
-			
-		self.canvas.purgeUnusedLabels(allKeys)
+		self.canvas.purgeUnusedLabels(lkeys, prefix)
+	
+	def placeBlockLabels(self):
+		lkeys = []
+		prefix = "B"
+		blList = self.annotations["blocks"]["blocks"]
+		for blKey in blList.keys():
+			bk = prefix + blKey
+			lkeys.append(bk)
+			self.canvas.placeLabel(bk, 
+				blList[blKey]["row"], blList[blKey]["col"],
+				blList[blKey]["adjx"], blList[blKey]["adjy"],
+				blList[blKey]["label"],
+				font=self.fontBlocks, fg=self.colorBlocks)
+		self.canvas.purgeUnusedLabels(lkeys, prefix)
+	
+	def placeLabelLabels(self):
+		lkeys = []
+		prefix = "L"
+		lblList = self.annotations["labels"]
+		for lblKey in lblList.keys():
+			lk = prefix + lblKey
+			lkeys.append(lk)
+			self.canvas.placeLabel(lk, 
+				lblList[lblKey]["row"], lblList[lblKey]["col"],
+				lblList[lblKey]["adjx"], lblList[lblKey]["adjy"],
+				lblList[lblKey]["label"],
+				font=self.fontLabels, fg=self.colorLabels)
+		self.canvas.purgeUnusedLabels(lkeys, prefix)
 		
+	def onShiftLeft(self, _):
+		if self.canvas.shiftCanvas(1):
+			self.setModified()
+	
+	def onShiftRight(self, _):
+		if self.canvas.shiftCanvas(-1):
+			self.setModified()
+	
+	def onPageLeft(self, _):
+		if self.canvas.shiftCanvas(40):
+			self.setModified()
+	
+	def onPageRight(self, _):
+		if self.canvas.shiftCanvas(-40):
+			self.setModified()
+
 	def setWindowTitle(self):
 		t = "Panel Editor"
 		if self.currentFile:
@@ -172,18 +355,116 @@ class MyFrame(wx.Frame):
 		self.setWindowTitle()
 	
 	def menuFileSave(self, _):
+		if self.annotationsNotCurrent():
+			return
+		
 		if self.currentFile:
 			self.fileSaveAs(self.currentFile)
 		else:
 			self.saveToOutputFile()
 	
 	def menuFileSaveAs(self, _):
+		if self.annotationsNotCurrent():
+			return
+		
 		self.saveToOutputFile()
+		
+	def annotationsNotCurrent(self):
+		toList = self.canvas.enumerateTurnouts()
+		coords = [x.getPos() for x in toList]
+		tomissing = []
+		tovalid = []
+		for c, r in coords:
+			k = buildKey(r, c)
+			if k not in self.annotations["turnouts"]:
+				tomissing.append(k)
+			else:
+				tovalid.append(k)
+				
+		toextra = []
+		for k in self.annotations["turnouts"]:
+			if k not in tovalid:
+				toextra.append(k)
+				
+				
+		sgList = self.canvas.enumerateSignals()
+		coords = [x.getPos() for x in sgList]
+		sgmissing = []
+		sgvalid = []
+		for c, r in coords:
+			k = buildKey(r, c)
+			if k not in self.annotations["signals"]:
+				sgmissing.append(k)
+			else:
+				sgvalid.append(k)
+		sgextra = []
+		for k in self.annotations["signals"]:
+			if k not in sgvalid:
+				sgextra.append(k)
+				
+				
+		beList = self.canvas.enumerateEOBs()
+		coords = [x.getPos() for x in beList]
+		bemissing = []
+		bevalid = []
+		for c, r in coords:
+			k = buildKey(r, c)
+			if k not in self.annotations["blocks"]["blockends"]:
+				bemissing.append(k)
+			else:
+				bevalid.append(k)
+		beextra = []
+		for k in self.annotations["blocks"]["blockends"]:
+			if k not in bevalid:
+				beextra.append(k)
+				
+				
+		message = ""
+		stale = False
+		
+		if len(toextra) > 0 or len(tomissing) > 0:
+			stale = True
+			message += "turnout annotations out of date:\n"
+			if len(toextra) > 0:
+				message += "  Annotated but not on screen: %s\n" % ",".join(toextra)
+			if len(tomissing) > 0:
+				message += "  On screen but not annotated: %s\n" % ",".join(tomissing)
+			message += "\n"
+		
+		if len(sgextra) > 0 or len(sgmissing) > 0:
+			stale = True
+			message += "signal annotations out of date:\n"
+			if len(sgextra) > 0:
+				message += "  Annotated but not on screen: %s\n" % ",".join(sgextra)
+			if len(sgmissing) > 0:
+				message += "  On screen but not annotated: %s\n" % ",".join(sgmissing)
+			message += "\n"
+		
+		if len(beextra) > 0 or len(bemissing) > 0:
+			stale = True
+			message += "clock end annotations out of date:\n"
+			if len(beextra) > 0:
+				message += "  Annotated but not on screen: %s\n" % ",".join(beextra)
+			if len(bemissing) > 0:
+				message += "  On screen but not annotated: %s\n" % ",".join(bemissing)
+			message += "\n"
+			
+		if not stale:
+			return False
+		
+		message += "\nSave anyway?"
+		
+		dlg = wx.MessageDialog(self, message, 'Annotations out of date', wx.YES_NO | wx.NO_DEFAULT | wx.ICON_WARNING)
+		rc = dlg.ShowModal()
+		dlg.Destroy()
+		
+		return rc == wx.ID_NO
+
 		
 	def saveToOutputFile(self):
 		wildcard = "Array file (*.arr)|*.arr|All files (*.*)|*.*"
 		dlg = wx.FileDialog(
-			self, message="Save file as ...", defaultDir=os.getcwd(),
+			self, message="Save file as ...", defaultDir=self.options.LastDir(),
 			defaultFile="", wildcard=wildcard, style=wx.FD_SAVE | wx.FD_OVERWRITE_PROMPT)
 		rc = dlg.ShowModal()
 		if rc == wx.ID_OK:
@@ -201,6 +482,10 @@ class MyFrame(wx.Frame):
 				fp.write("".join(r) + "\n")
 				
 		self.currentFile = path
+		dn = os.path.dirname(path)
+		if dn != self.options.LastDir():
+			self.options.setLastDir(dn)
+			
 		self.modified = False
 		self.setWindowTitle()	
 		self.setStatusBar("File %s saved" % self.currentFile)
@@ -221,7 +506,7 @@ class MyFrame(wx.Frame):
 				return
 			
 		wildcard = "Array file (*.arr)|*.arr|All files (*.*)|*.*"
-		dlg = wx.FileDialog(self, message="Choose a file", defaultDir=os.getcwd(),
+		dlg = wx.FileDialog(self, message="Choose a file", defaultDir=self.options.LastDir(),
 			defaultFile="", wildcard=wildcard,
 			style=wx.FD_OPEN | wx.FD_FILE_MUST_EXIST)
 		
@@ -233,6 +518,10 @@ class MyFrame(wx.Frame):
 			return
 
 		self.currentFile = path
+		dn = os.path.dirname(path)
+		if dn != self.options.LastDir():
+			self.options.setLastDir(dn)
+			
 		self.modified = False
 		self.setWindowTitle()	
 					
@@ -240,7 +529,7 @@ class MyFrame(wx.Frame):
 			inlns = f.readlines()
 			
 		mapArray = [x.strip() for x in inlns]
-		self.canvas.loadCanvas(mapArray)
+		self.canvas.loadCanvas(mapArray, 0)
 		
 		annFn = os.path.splitext(self.currentFile)[0] + ".json"
 		with open(annFn, "r") as fp:
@@ -257,6 +546,38 @@ class MyFrame(wx.Frame):
 							"blockends": {},
 							"blocks": {} },
 						"labels": {} }
+
+		self.canvas.clearAllLabels()
+		if self.options.AutoLabel():
+			self.placeLabels()
+				
+	def menuFileNew(self, _):
+		if self.modified:
+			dlg = wx.MessageDialog(self, "You have unsaved changes.  Are you sure you want to create a new file?",
+				'Unsaved Changes', wx.YES_NO | wx.NO_DEFAULT | wx.ICON_INFORMATION)
+	
+			rc = dlg.ShowModal()
+			dlg.Destroy()
+
+			if rc != wx.ID_YES:
+				return
+			
+		self.currentFile = None
+		self.modified = False
+		self.setWindowTitle()	
+		
+		cols, rows = self.canvas.getSize()
+					
+		mapArray = ['.' * cols] * rows
+		self.canvas.loadCanvas(mapArray, 0)
+		
+		self.annotations = {"turnouts": {}, 
+			"signals": {},
+			"blocks": { 
+				"blockends": {},
+				"blocks": {} },
+			"labels": {} }
+		self.canvas.clearAllLabels()
 				
 		
 	def menuAnnotateTurnouts(self, _):

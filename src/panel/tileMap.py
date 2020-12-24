@@ -45,7 +45,7 @@ class TileMap:
 
 		self.tmap['u'] = TrackTile(self.bmpRoot.track.eobwest, [[0, 0], [1, 0]])
 		self.tmap['v'] = TrackTile(self.bmpRoot.track.eobeast, [[-1, 0], [0, 0]])
-		self.tmap['w'] = TrackTile(self.bmpRoot.track.eobup, [[0, None], [0, 0]])
+		self.tmap['w'] = TrackTile(self.bmpRoot.track.eobup, [[0, 0], [0, None]])
 		self.tmap['x'] = TrackTile(self.bmpRoot.track.eobdown, [[0, None], [0, 0]])
 
 		self.tmap['2'] = TurnoutTile(self.bmpRoot.track.tolefteast, [[-1, 0], [1, 0], [1, -1]])

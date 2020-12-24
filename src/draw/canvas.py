@@ -58,6 +58,8 @@ class Canvas(wx.Panel):
 		wx.Panel.__init__(self, parent, wx.ID_ANY)	
 			
 		self.SetBackgroundColour(wx.Colour(16, 16, 16))
+		self.cvarr = []
+		self.offset = 0
 		
 		self.lastRow = -1
 		self.lastCol = -1
@@ -69,6 +71,7 @@ class Canvas(wx.Panel):
 		
 		self.pendingOperation = None
 		self.stLabels = {}
+		self.labelPos = {}
 		
 		self.bmpCursor = wx.StaticBitmap(self, wx.ID_ANY, self.cursor1, size=(BMPDIM[0]+4, BMPDIM[1]+4), style=0)
 		self.currentCursor = self.cursor1
@@ -96,13 +99,16 @@ class Canvas(wx.Panel):
 				hsz.Add(b, 1, wx.EXPAND|wx.ALL, 1)
 				
 			self.tileArray.append(tileRow)
+			self.cvarr.append(tileRow)
 			self.canvasTiles.append(canvasRow)
 			hsz.AddSpacer(1)
 			self.cvsz.Add(hsz)
 			
 		self.cvsz.AddSpacer(1)
 		self.SetSizer(self.cvsz)
-			
+
+	def getSize(self):
+		return colsCanvas, rowsCanvas
 				
 	def addText(self, r, c, text):
 		ct = self.canvasTiles[r][c]
@@ -112,20 +118,36 @@ class Canvas(wx.Panel):
 		t.SetBackgroundColour(wx.Colour(0, 0, 0))
 		t.SetForegroundColour(wx.Colour(255, 128, 20))
 
-	def updateLabel(self, key, row, col, adjx, adjy, text):
-		if key not in self.stLabels.keys():
-			return
+# 	def adjustLabelsCol(self, col, delta):
+# 		ct = 0
+# 		for key in self.stLabels:
+# 			r, c, x, y = self.labelPos[key]
+# 			if c >= col:
+# 				print("adjusting label %s column from %d to %d" % (key, c, c+delta))
+# 				c += delta
+# 				self.labelPos[key] = [r, c, x, y]
+# 				ct += 1
+# 				
+# 		if ct > 0:
+# 			self.shiftLabels()
+# 
+# 	def adjustLabelsRow(self, row, delta):
+# 		ct = 0
+# 		for key in self.stLabels:
+# 			r, c, x, y = self.labelPos[key]
+# 			if r >= row:
+# 				print("adjusting label %s row from %d to %d" % (key, r, r+delta))
+# 				r += delta
+# 				self.labelPos[key] = [r, c, x, y]
+# 				ct += 1
+# 				
+# 		if ct > 0:
+# 			self.shiftLabels()
 		
-		st = self.stLabels[key]
-		st.SetLabel(text)
 		
-		ct = self.canvasTiles[row][col]
-		b = ct.getBmp()
-		p = b.GetPosition()
-		p[0] += adjx
-		p[1] += adjy
-		
-		st.SetPosition(p)
+	def shiftLabels(self):
+		for key in self.stLabels:
+			self.adjustLabelPosition(key)		
 		
 	def placeLabel(self, key, row, col, adjx, adjy, text, font=None, fg=None, bg=None):
 		if key in self.stLabels.keys():
@@ -134,34 +156,47 @@ class Canvas(wx.Panel):
 		else:
 			st = wx.StaticText(self, wx.ID_ANY, text)
 			self.stLabels[key] = st
+			if font is None:
+				st.SetFont(wx.Font(70, wx.FONTFAMILY_TELETYPE, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL))
+			else:
+				st.SetFont(font)
 			
-		ct = self.canvasTiles[row][col]
-		b = ct.getBmp()
-		p = b.GetPosition()
-		p[0] += adjx
-		p[1] += adjy
-		
-		st.SetPosition(p)
-		
-		if font is None:
-			st.SetFont(wx.Font(70, wx.FONTFAMILY_TELETYPE, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL))
-		else:
-			st.SetFont(font)
-		
-		if fg is None:
-			st.SetForegroundColour(wx.Colour(255, 128, 20))
-		else:
-			st.SetForegroundColour(fg)
-			
-		if bg is None:
-			st.SetBackgroundColour(wx.Colour(0, 0, 0))
-		else:
-			st.SetBackgroundColour(bg)
+			if fg is None:
+				st.SetForegroundColour(wx.Colour(255, 128, 20))
+			else:
+				st.SetForegroundColour(fg)
+				
+			if bg is None:
+				st.SetBackgroundColour(wx.Colour(0, 0, 0))
+			else:
+				st.SetBackgroundColour(bg)
 
-	def purgeUnusedLabels(self, allkeys):
+		self.labelPos[key] = [row, col, adjx, adjy]
+		self.adjustLabelPosition(key)
+		
+	def adjustLabelPosition(self, key):
+		st = self.stLabels[key]
+		row, col, adjx, adjy = self.labelPos[key]
+		
+		c = col - self.offset
+		if c < 0 or c >= colsCanvas:
+			st.Hide()
+		else:
+			st.Show()
+			ct = self.canvasTiles[row][col-self.offset]
+			b = ct.getBmp()
+			p = b.GetPosition()
+			p[0] += adjx
+			p[1] += adjy
+		
+			st.SetPosition(p)
+			st.Refresh()
+		
+
+	def purgeUnusedLabels(self, keylist, prefix):
 		purgeList = []
 		for k in self.stLabels.keys():
-			if k not in allkeys:
+			if k.startswith(prefix) and k not in keylist:
 				purgeList.append(k)
 				
 		for k in purgeList:
@@ -171,29 +206,41 @@ class Canvas(wx.Panel):
 				pass
 			del self.stLabels[k]
 			
+	def clearAllLabels(self):
+		for k in self.stLabels.keys():
+			try:
+				self.stLabels[k].Destroy()
+			except:
+				pass
+			
+		self.stLabels = {}
+			
 	def enumerateTurnouts(self):
 		results = []
+		cols = len(self.cvarr[0])
 		for r in range(rowsCanvas):
-			for c in range(colsCanvas):
-				t = self.tileArray[r][c]
+			for c in range(cols):
+				t = self.cvarr[r][c]
 				if t in [ '2', '3', '4', '5' ]:
 					results.append(Turnout(t, (c, r)))
 		return results
 			
 	def enumerateSignals(self):
 		results = []
+		cols = len(self.cvarr[0])
 		for r in range(rowsCanvas):
-			for c in range(colsCanvas):
-				t = self.tileArray[r][c]
+			for c in range(cols):
+				t = self.cvarr[r][c]
 				if t in [ '0', '1' ]:
 					results.append(Signal(t, (c, r)))
 		return results
 
 	def enumerateEOBs(self):
 		results = []
+		cols = len(self.cvarr[0])
 		for r in range(rowsCanvas):
-			for c in range(colsCanvas):
-				t = self.tileArray[r][c]
+			for c in range(cols):
+				t = self.cvarr[r][c]
 				if t in [ 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x' ]:
 					results.append(Signal(t, (c, r)))
 		return results
@@ -210,43 +257,46 @@ class Canvas(wx.Panel):
 		
 	def doDeleteRow(self, row):
 		newArr = []
-		for r in self.tileArray[0:row]:
+		for r in self.cvarr[0:row]:
 			newArr.append([x for x in r])
-		for r in self.tileArray[row+1:]:
+		for r in self.cvarr[row+1:]:
 			newArr.append([x for x in r])
 			
 		newArr.append(['.'] * len(newArr[0]))
 		self.setPendingOperation(None)
 		self.loadCanvas(newArr)
+		#self.adjustLabelsRow(row, -1)
 		self.parent.setModified()
-		#a[0:d]+[99]+a[d+1:]
 		
 	def doDeleteCol(self, col):
 		newArr = []
-		for r in self.tileArray:
-			newArr.append(r[0:col] + r[col+1:] + ['.'])
+		for r in self.cvarr:
+			newArr.append(r[0:col+self.offset] + r[col+self.offset+1:] + ['.'])
 		self.setPendingOperation(None)
 		self.loadCanvas(newArr)
+		#self.adjustLabelsCol(col, -1)
 		self.parent.setModified()
 		
 	def doInsertRow(self, row):
 		newArr = []
-		for r in self.tileArray[0:row]:
+		for r in self.cvarr[0:row]:
 			newArr.append([x for x in r])
 		newArr.append(['.'] * len(newArr[0]))
-		for r in self.tileArray[row:-1]:
+		for r in self.cvarr[row:-1]:
 			newArr.append([x for x in r])
 			
 		self.setPendingOperation(None)
 		self.loadCanvas(newArr)
+		#self.adjustLabelsRow(row, 1)
 		self.parent.setModified()
 		
 	def doInsertCol(self, col):
 		newArr = []
-		for r in self.tileArray:
-			newArr.append(r[0:col] + ['.'] + r[col:-1])
+		for r in self.cvarr:
+			newArr.append(r[0:col+self.offset] + ['.'] + r[col+self.offset:])
 		self.setPendingOperation(None)
 		self.loadCanvas(newArr)
+		#self.adjustLabelsCol(col+self.offset, 1)
 		self.parent.setModified()
 
 	def setCursor(self):			
@@ -257,7 +307,14 @@ class Canvas(wx.Panel):
 		self.bmpCursor.SetPosition((bx-2, by-2))
 		
 	def setCursorAt(self, row, col):
-		ct = self.canvasTiles[row][col]
+		c = col - self.offset
+		if c < 0:
+			self.shiftCanvas(c)
+		
+		elif c >= colsCanvas:
+			self.shiftCanvas(c - colsCanvas + 1)
+		
+		ct = self.canvasTiles[row][col-self.offset]
 		b = ct.getBmp()
 		bx, by = b.GetPosition()
 		self.bmpCursor.SetBitmap(self.currentCursor)
@@ -272,25 +329,64 @@ class Canvas(wx.Panel):
 		ct = self.canvasTiles[self.cRow][self.cCol]
 		b = ct.getBmp()
 		self.canvasClick(b, self.cRow, self.cCol, False)
+		
+	def shiftCanvas(self, delta):
+		self.offset += delta
+		if self.offset < 0:
+			self.offset = 0
+		
+		rc = False
+		if self.offset + colsCanvas > len(self.cvarr[0]):
+			add = self.offset + colsCanvas - len(self.cvarr[0])
+			rc = True
+			for i in range(len(self.cvarr)):
+				self.cvarr[i] = self.cvarr[i] + (["."] * add)
+				
+		self.updateCanvas()
+		self.shiftLabels()
+		self.updateStatus()
+		return rc
 			
-	def loadCanvas(self, cvarr):
+	def loadCanvas(self, cvarr, offset=None):
+		if offset is not None:
+			self.offset = offset
+			
+		self.cvarr = [[x for x in cvline] for cvline in cvarr]
+		maxLen = 0;
+		for l in self.cvarr:
+			if len(l) > maxLen:
+				maxLen = len(l)
+				
+		for i in range(len(self.cvarr)):
+			self.cvarr[i] = (self.cvarr[i] + (["."] * maxLen))[:maxLen]
+			
+		self.updateCanvas()
+		
+	def updateCanvas(self):
 		for r in range(rowsCanvas):
 			for c in range(colsCanvas):
-				nv = cvarr[r][c]
+				nv = self.cvarr[r][c+self.offset]
 				b = self.canvasTiles[r][c].getBmp()
 				self.tileArray[r][c] = nv
+				self.cvarr[r][c+self.offset] = nv
 				b.SetBitmap(self.masterPallette[nv])
 		
 	def canvasClick(self, bmp, row, col, left):
 		if self.pendingOperation is not None:
+			print("check on pending operation")
 			if self.pendingOperation == PENDING_ROW_DELETE:
 				self.doDeleteRow(row)
+				self.parent.pendingOpCompleted(row, None, -1)
 			elif self.pendingOperation == PENDING_ROW_INSERT:
 				self.doInsertRow(row)
+				self.parent.pendingOpCompleted(row, None, 1)
 			elif self.pendingOperation == PENDING_COL_DELETE:
 				self.doDeleteCol(col)
+				self.parent.pendingOpCompleted(None, col+self.offset, -1)
 			elif self.pendingOperation == PENDING_COL_INSERT:
 				self.doInsertCol(col)
+				print("calling pending op complete")
+				self.parent.pendingOpCompleted(None, col+self.offset, 1)
 			return
 			
 		self.parent.setModified()
@@ -298,6 +394,7 @@ class Canvas(wx.Panel):
 		if left:
 			bmp.SetBitmap(ctb)
 			self.tileArray[row][col] = ct
+			self.cvarr[row][col+self.offset] = ct
 			self.lastRow = row
 			self.lastCol = col
 		else:
@@ -315,7 +412,8 @@ class Canvas(wx.Panel):
 					cvt = self.canvasTiles[self.lastRow][c]
 					cvt.getBmp().SetBitmap(ctb)
 					self.tileArray[self.lastRow][c] = ct
-					
+					self.cvarr[self.lastRow][c+self.offset] = ct
+			
 			elif row != self.lastRow and col == self.lastCol:
 				if self.lastRow < row:
 					start = self.lastRow+1
@@ -330,10 +428,12 @@ class Canvas(wx.Panel):
 					cvt = self.canvasTiles[r][self.lastCol]
 					cvt.getBmp().SetBitmap(ctb)
 					self.tileArray[r][self.lastCol] = ct
+					self.cvarr[r][self.lastCol+self.offset] = ct
 
 			else:
 				bmp.SetBitmap(ctb)
 				self.tileArray[row][col] = ct
+				self.cvarr[row][col+self.offset] = ct
 				self.lastRow = row
 				self.lastCol = col
 				
@@ -341,8 +441,16 @@ class Canvas(wx.Panel):
 		self.cCol = col
 		self.cRow = row
 		self.setCursor()
-		self.parent.setStatusBar("%d : %d" % (col, row), 1)
+		self.updateStatus()
+		
+	def updateStatus(self):
+		cols = len(self.cvarr[0])
+		rows = len(self.cvarr)
+		self.parent.setStatusBar(
+			"Screen %2d : %2d    Map: %2d : %2d (offset %d) / %2d : %2d" %
+				(self.cCol, self.cRow, self.cCol+self.offset, self.cRow, self.offset, cols, rows),
+			 1)
 		
 	def getData(self):
-		return self.tileArray
+		return self.cvarr
 		

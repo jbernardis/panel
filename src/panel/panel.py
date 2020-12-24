@@ -30,8 +30,8 @@ class MyFrame(wx.Frame):
 		self.fontSignals = wx.Font(8, wx.FONTFAMILY_TELETYPE, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL)
 		self.colorSignals = wx.Colour(255, 255, 0)
 		
-		self.fontBlocks = wx.Font(70, wx.FONTFAMILY_TELETYPE, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL)
-		self.colorBlocks = wx.Colour(255, 128, 20)
+		self.fontBlocks = wx.Font(14, wx.FONTFAMILY_TELETYPE, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL)
+		self.colorBlocks = wx.Colour(255, 20, 20)
 		
 		self.fontLabels = wx.Font(70, wx.FONTFAMILY_TELETYPE, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL)
 		self.colorLabels = wx.Colour(255, 128, 20)
@@ -96,6 +96,13 @@ class MyFrame(wx.Frame):
 				sg["adjx"], sg["adjy"],
 				sg["label"],
 				font=self.fontSignals, fg=self.colorSignals)
+			
+		for bl in self.annotations["blocks"]["blocks"].values():
+			self.placeLabel( 
+				bl["row"], bl["col"],
+				bl["adjx"], bl["adjy"],
+				bl["label"],
+				font=self.fontBlocks, fg=self.colorBlocks)
 			
 		
 	def placeLabel(self, row, col, adjx, adjy, text, font=None, fg=None, bg=None):
@@ -207,13 +214,108 @@ class MyFrame(wx.Frame):
 			
 		return False, None, False, 0
 		
-	def markRoute(self, rStart, cStart, rtype, eb=True):
+	def findBlockByName(self, name, rtype):
+		eobs = []
+		for b in self.annotations["blocks"]["blockends"].values():
+			if b["blockname"] == name:
+				eobs.append([b["row"], b["col"]])
+	
+		maxCols = len(self.panelMap[0])-1
+		maxRows = len(self.panelMap)-1
+					
+		for r, c in eobs:
+			print("start at r%d c%d" % (r,c))
+			te = self.panelMap[r][c][1]	
+			eadj = te.getAdjacent(ADJ_EAST)
+			wadj = te.getAdjacent(ADJ_WEST)
+			if eadj == [0, 0]:
+				eastbound = False
+			else:
+				eastbound = True
+			if eadj == [0, None]:
+				lastAdjRow = 1
+			elif wadj == [0, None]:
+				lastAdjRow = -1
+			else:
+				lastAdjRow = None
+				
+			print(str(eastbound), str(lastAdjRow))
+				
+			startRow = r
+			startCol = c
+			startEast = eastbound
+			startVert = lastAdjRow
+			
+			lastAdj = None
+
+			foundRoute = False			
+			while True:
+				entryReverse = False
+				
+				print("new coord: r%d c%d" % (r,c))
+				
+				if c < 0 or c > maxCols:
+					print("max col exceeded")
+					foundRoute = True
+					break
+				if r < 0 or r > maxRows:
+					print("max rows exceeded")
+					foundRoute = True
+					break
+	
+				try:
+					te = self.panelMap[r][c][1]
+				except IndexError:
+					print("index error")
+					break
+				
+				if lastAdj:
+					mesh, tileEntry, entryReverse, _ = self.tracksMesh(te, lastAdj)
+					if not mesh:
+						print("last te does not mesh with this te")
+						break
+					if tileEntry == ADJ_WEST:
+						eastbound = True
+					elif tileEntry == ADJ_EAST:
+						eastbound = False
+				
+				
+				if (not entryReverse) and te.isTurnout() and te.isReversed():		
+					adj = te.getAdjacent(ADJ_REVERSED)
+				elif eastbound:
+					adj = te.getAdjacent(ADJ_EAST)
+				else:
+					adj = te.getAdjacent(ADJ_WEST)
+					
+				if adj is None:
+					print("hit none")
+					break
+				if adj == [0, 0]:
+					print("found matching EOB")
+					foundRoute = True
+					break
+				
+				if adj[1] is None:
+					adj[1] = lastAdjRow
+				
+				c += adj[0]
+				r += adj[1]
+				
+				# set up the last adjacency matrix to match against the COMPLEMENT of this movement
+				lastAdj = [-x for x in adj]
+				lastAdjRow = adj[1]
+				
+			if foundRoute:
+				self.markRoute(startRow, startCol, rtype, startEast, startVert)
+				break
+				
+	def markRoute(self, rStart, cStart, rtype, eb=True, vert=None):
 		r = rStart
 		c = cStart
 		eastbound = eb
 		
 		lastAdj = None
-		lastAdjRow = None
+		lastAdjRow = vert
 		
 		while True:
 			entryReverse = False
@@ -297,11 +399,21 @@ class MyFrame(wx.Frame):
 				bmp.SetBitmap(te.getBmp())
 			
 	def clickSignal(self, sg, lr):
-		sg.setRed(not sg.isRed())
+		red = sg.isRed()
 		
 		r, c = sg.getBlockStart()
+		te = self.panelMap[r][c][1]
 		
-		self.markRoute(r, c, TTYPE_NORMAL if sg.isRed() else TTYPE_ROUTED, sg.isEast())
+		if red:
+			# attempt to turn signal green
+			# only allowed if block is not otherwise busy
+			if te.isOccupied() or te.isRouted():
+				print("route is busy")
+				return
+
+		red = not red		
+		sg.setRed(red)
+		self.markRoute(r, c, TTYPE_NORMAL if red else TTYPE_ROUTED, sg.isEast())
 		
 	def onClose(self, _):
 		self.Hide()

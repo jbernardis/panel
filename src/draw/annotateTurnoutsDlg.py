@@ -59,6 +59,9 @@ class AnnotateTurnoutsDlg(wx.Dialog):
 			adjy = 0
 			self.self.currentKey = None
 			
+		self.bUpdateDisplay = wx.Button(self, wx.ID_ANY, "Update Display")
+		self.Bind(wx.EVT_BUTTON, self.onBUpdateDisplay, self.bUpdateDisplay)
+			
 		self.tcLabel = wx.TextCtrl(self, wx.ID_ANY, label, size=(125, -1))
 		self.Bind(wx.EVT_TEXT, self.onTextLabel, self.tcLabel)
 				
@@ -83,7 +86,11 @@ class AnnotateTurnoutsDlg(wx.Dialog):
 		self.Bind(wx.EVT_SPINCTRL, self.onSpinAdjY, self.scAdjY)
 			
 		hsz = wx.BoxSizer(wx.HORIZONTAL)
-		hsz.Add(self.lbTurnouts)
+		vsz = wx.BoxSizer(wx.VERTICAL)
+		vsz.Add(self.lbTurnouts)
+		vsz.AddSpacer(10)
+		vsz.Add(self.bUpdateDisplay)
+		hsz.Add(vsz)
 		hsz.AddSpacer(10)
 		
 		vsz = wx.BoxSizer(wx.VERTICAL)
@@ -136,6 +143,9 @@ class AnnotateTurnoutsDlg(wx.Dialog):
 		self.scOffsetC.SetValue(offc)
 		self.scAdjX.SetValue(adjx)
 		self.scAdjY.SetValue(adjy)
+		
+	def onBUpdateDisplay(self, _):
+		self.parent.placeTurnoutLabels()
 		
 	def onTextLabel(self, _):
 		if self.currentKey:

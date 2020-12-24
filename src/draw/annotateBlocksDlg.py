@@ -35,33 +35,104 @@ class AnnotateBlocksDlg(wx.Dialog):
 			for k in invalidKeys:
 				del(self.beAnnotations[k])
 				
+		self.blockNames = []
+		for k in self.beAnnotations:
+			bn = self.beAnnotations[k]["blockname"]
+			if bn and bn != "" and bn not in self.blockNames:
+				self.blockNames.append(bn)
+				if bn not in self.blAnnotations:
+					self.addInitialBlock(bn)
+					
+		bl = list(self.blAnnotations.keys())
+		for b in bl:
+			if b not in self.blockNames:
+				del(self.blAnnotations[b])
+				
 		self.eobList = ["r: %2d  c: %2d" % (x[1], x[0]) for x in self.coords]
 		
-		self.lbBlocks = wx.ListBox(self, wx.ID_ANY, choices=self.eobList, style=wx.LB_SINGLE)
-		self.lbBlocks.SetFont(font)
-		self.Bind(wx.EVT_LISTBOX, self.onListBox, self.lbBlocks)
+		self.lbBlockEnds = wx.ListBox(self, wx.ID_ANY, choices=self.eobList, style=wx.LB_SINGLE, size=(-1, 240))
+		self.lbBlockEnds.SetFont(font)
+		self.Bind(wx.EVT_LISTBOX, self.onLBBlockEnds, self.lbBlockEnds)
 
 		if len(self.coords) > 0:
-			self.lbBlocks.SetSelection(0)
+			self.lbBlockEnds.SetSelection(0)
 			col = self.coords[0][0]
 			row = self.coords[0][1]
 			self.parent.canvas.setCursorAt(row, col)
 			self.currentKey = buildKey(row, col)
-			blockName = self.beAnnotations[self.currentKey]["blockname"]
+			self.currentBlockName = self.beAnnotations[self.currentKey]["blockname"]
+			if self.currentBlockName.strip() == "":
+				lrow = 0
+				lcol = 0
+				adjx = 0
+				adjy = 0
+			else:				
+				lrow = self.blAnnotations[self.currentBlockName]["row"]
+				lcol = self.blAnnotations[self.currentBlockName]["col"]
+				adjx = self.blAnnotations[self.currentBlockName]["adjx"]
+				adjy = self.blAnnotations[self.currentBlockName]["adjy"]
 		else:
-			blockName = ""
+			self.currentBlockName = ""
+			lrow = 0
+			lcol = 0
+			adjx = 0
+			adjy = 0
 			self.self.currentKey = None
 			
-		self.tcBlockName = wx.TextCtrl(self, wx.ID_ANY, blockName, size=(125, -1))
-		self.Bind(wx.EVT_TEXT, self.onTextBlockName, self.tcBlockName)
+		self.bUpdateDisplay = wx.Button(self, wx.ID_ANY, "Update Display")
+		self.Bind(wx.EVT_BUTTON, self.onBUpdateDisplay, self.bUpdateDisplay)
+			
+		self.cbBlockName = wx.ComboBox(self, wx.ID_ANY, self.currentBlockName, choices=self.blockNames,
+						style=wx.CB_DROPDOWN | wx.CB_SORT | wx.TE_PROCESS_ENTER)
+		self.Bind(wx.EVT_COMBOBOX, self.onCbBlockName, self.cbBlockName)
+		self.cbBlockName.Bind(wx.EVT_KILL_FOCUS, self.onKFBlockName)
 				
 		hsz = wx.BoxSizer(wx.HORIZONTAL)
-		hsz.Add(self.lbBlocks)
+		vsz = wx.BoxSizer(wx.VERTICAL)
+		vsz.Add(self.lbBlockEnds)
+		vsz.AddSpacer(10)
+		vsz.Add(self.bUpdateDisplay)
+		hsz.Add(vsz)
 		hsz.AddSpacer(10)
 		
 		vsz = wx.BoxSizer(wx.VERTICAL)
-		vsz.Add(wx.StaticText(self, wx.ID_ANY, "Block Name:"))
-		vsz.Add(self.tcBlockName)
+		vsz.Add(wx.StaticText(self, wx.ID_ANY, "Block Names:"))
+		vsz.Add(self.cbBlockName)
+				
+		self.scRow = wx.SpinCtrl(self, wx.ID_ANY, "0")
+		self.scRow.SetRange(0, 39)
+		self.scRow.SetValue(lrow)
+		self.Bind(wx.EVT_SPINCTRL, self.onSpinRow, self.scRow)
+		self.scRow.Bind(wx.EVT_SET_FOCUS, self.onRowColSetFocus)
+		
+		self.scCol = wx.SpinCtrl(self, wx.ID_ANY, "0")
+		self.scCol.SetRange(0, 50)
+		self.scCol.SetValue(lcol)
+		self.Bind(wx.EVT_SPINCTRL, self.onSpinCol, self.scCol)
+		self.scCol.Bind(wx.EVT_SET_FOCUS, self.onRowColSetFocus)
+				
+		self.scAdjX = wx.SpinCtrl(self, wx.ID_ANY, "0")
+		self.scAdjX.SetRange(-100, 100)
+		self.scAdjX.SetValue(adjx)
+		self.Bind(wx.EVT_SPINCTRL, self.onSpinAdjX, self.scAdjX)
+		
+		self.scAdjY = wx.SpinCtrl(self, wx.ID_ANY, "0")
+		self.scAdjY.SetRange(-100, 100)
+		self.scAdjY.SetValue(adjy)
+		self.Bind(wx.EVT_SPINCTRL, self.onSpinAdjY, self.scAdjY)
+		
+		vsz.AddSpacer(20)
+		vsz.Add(wx.StaticText(self, wx.ID_ANY, "Row:"))
+		vsz.Add(self.scRow)
+		vsz.AddSpacer(10)
+		vsz.Add(wx.StaticText(self, wx.ID_ANY, "Column:"))
+		vsz.Add(self.scCol)
+		vsz.AddSpacer(20)
+		vsz.Add(wx.StaticText(self, wx.ID_ANY, "X Adjustment:"))
+		vsz.Add(self.scAdjX)
+		vsz.AddSpacer(10)
+		vsz.Add(wx.StaticText(self, wx.ID_ANY, "Y Adjustment:"))
+		vsz.Add(self.scAdjY)
 		
 		hsz.Add(vsz)
 		
@@ -75,8 +146,11 @@ class AnnotateBlocksDlg(wx.Dialog):
 		self.SetSizer(hsz)
 		self.Fit()
 		
-	def onListBox(self, _):
-		dx = self.lbBlocks.GetSelection()
+	def addInitialBlock(self, bn):
+		self.blAnnotations[bn] = {"label": bn, "row": 0, "col": 0, "adjx" : 0, "adjy": 0}
+		
+	def onLBBlockEnds(self, _):
+		dx = self.lbBlockEnds.GetSelection()
 		if dx == wx.NOT_FOUND:
 			return
 		
@@ -85,15 +159,94 @@ class AnnotateBlocksDlg(wx.Dialog):
 		self.parent.canvas.setCursorAt(row, col)
 
 		k = buildKey(row, col)
-		lbl = self.beAnnotations[k]["blockname"]
+		self.currentBlockName = self.beAnnotations[k]["blockname"].strip()
 		self.currentKey = k
+		self.updateControls()
+
+		self.cbBlockName.SetValue(self.currentBlockName)
 		
-		self.tcBlockName.SetValue(lbl)
+	def onBUpdateDisplay(self, _):
+		self.parent.placeBlockLabels()
 		
-	def onTextBlockName(self, _):
+	def updateControls(self):
+		try:
+			bl = self.blAnnotations[self.currentBlockName]		
+			lrow = bl["row"]
+			lcol = bl["col"]
+			adjx = bl["adjx"]
+			adjy = bl["adjy"]
+			
+		except KeyError:
+			lrow = 0
+			lcol = 0
+			adjx = 0
+			adjy = 0
+			
+		self.scRow.SetValue(lrow)
+		self.scCol.SetValue(lcol)
+		self.scAdjX.SetValue(adjx)
+		self.scAdjY.SetValue(adjy)
+		
+	def onCbBlockName(self, _):
 		if self.currentKey:
 			self.modified = True
-			self.beAnnotations[self.currentKey]["blockname"] = self.tcBlockName.GetValue()
+			self.currentBlockName = self.cbBlockName.GetValue()
+			self.beAnnotations[self.currentKey]["blockname"] = self.currentBlockName
+			self.updateControls()
+		
+	def onKFBlockName(self, evt):
+		print("kill focus (%s)" % self.cbBlockName.GetValue())
+		if self.currentKey:
+			bn = self.cbBlockName.GetValue()
+			self.currentBlockName = bn
+			if bn != self.beAnnotations[self.currentKey]["blockname"]:
+				self.modified = True
+				if bn not in self.blockNames:
+					print("appending (%s) to choices" % bn)
+					self.blockNames.append(bn)
+					self.cbBlockName.Append(bn)
+					
+				self.beAnnotations[self.currentKey]["blockname"] = bn
+				if bn not in self.blAnnotations:
+					self.addInitialBlock(bn)
+		
+		evt.Skip()
+
+	def onSpinRow(self, _):
+		if self.currentKey:
+			self.modified = True
+			row = self.scRow.GetValue()
+			col = self.scCol.GetValue()
+			self.blAnnotations[self.currentBlockName]["row"] = row
+			
+			self.parent.canvas.setCursorAt(row, col)
+
+	def onSpinCol(self, _):
+		if self.currentKey:
+			self.modified = True
+			row = self.scRow.GetValue()
+			col = self.scCol.GetValue()
+			self.blAnnotations[self.currentBlockName]["col"] = col
+			
+			self.parent.canvas.setCursorAt(row, col)
+			
+	def onRowColSetFocus(self, evt):
+		if self.currentKey:
+			row = self.scRow.GetValue()
+			col = self.scCol.GetValue()
+			self.parent.canvas.setCursorAt(row, col)
+			
+		evt.Skip()
+			
+	def onSpinAdjX(self, _):
+		if self.currentKey:
+			self.modified = True
+			self.blAnnotations[self.currentBlockName]["adjx"] = self.scAdjX.GetValue()
+
+	def onSpinAdjY(self, _):
+		if self.currentKey:
+			self.modified = True
+			self.blAnnotations[self.currentBlockName]["adjy"] = self.scAdjY.GetValue()
 			
 	def getStatus(self):
 		return self.modified
