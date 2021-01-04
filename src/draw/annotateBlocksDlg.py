@@ -3,11 +3,13 @@ import wx
 from utilities import buildKey		
 
 class AnnotateBlocksDlg(wx.Dialog):
-	def __init__(self, parent, eoblist):
+	def __init__(self, parent, bmps, eoblist, maxx):
 		wx.Dialog.__init__(self, parent, wx.ID_ANY, "Block Annotation")
 		self.Bind(wx.EVT_CLOSE, self.onClose)
 		
 		self.parent = parent
+		self.bmps = bmps
+		self.maxx = maxx
 		self.annotations = self.parent.annotations["blocks"]
 		self.beAnnotations = self.annotations["blockends"]
 		self.blAnnotations = self.annotations["blocks"]
@@ -77,9 +79,9 @@ class AnnotateBlocksDlg(wx.Dialog):
 			lcol = 0
 			adjx = 0
 			adjy = 0
-			self.self.currentKey = None
+			self.currentKey = None
 			
-		self.bUpdateDisplay = wx.Button(self, wx.ID_ANY, "Update Display")
+		self.bUpdateDisplay = wx.BitmapButton(self, wx.ID_ANY, self.bmps.update)
 		self.Bind(wx.EVT_BUTTON, self.onBUpdateDisplay, self.bUpdateDisplay)
 			
 		self.cbBlockName = wx.ComboBox(self, wx.ID_ANY, self.currentBlockName, choices=self.blockNames,
@@ -106,7 +108,7 @@ class AnnotateBlocksDlg(wx.Dialog):
 		self.scRow.Bind(wx.EVT_SET_FOCUS, self.onRowColSetFocus)
 		
 		self.scCol = wx.SpinCtrl(self, wx.ID_ANY, "0")
-		self.scCol.SetRange(0, 50)
+		self.scCol.SetRange(0, self.maxx)
 		self.scCol.SetValue(lcol)
 		self.Bind(wx.EVT_SPINCTRL, self.onSpinCol, self.scCol)
 		self.scCol.Bind(wx.EVT_SET_FOCUS, self.onRowColSetFocus)
@@ -195,14 +197,12 @@ class AnnotateBlocksDlg(wx.Dialog):
 			self.updateControls()
 		
 	def onKFBlockName(self, evt):
-		print("kill focus (%s)" % self.cbBlockName.GetValue())
 		if self.currentKey:
 			bn = self.cbBlockName.GetValue()
 			self.currentBlockName = bn
 			if bn != self.beAnnotations[self.currentKey]["blockname"]:
 				self.modified = True
 				if bn not in self.blockNames:
-					print("appending (%s) to choices" % bn)
 					self.blockNames.append(bn)
 					self.cbBlockName.Append(bn)
 					

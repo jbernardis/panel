@@ -118,33 +118,6 @@ class Canvas(wx.Panel):
 		t.SetBackgroundColour(wx.Colour(0, 0, 0))
 		t.SetForegroundColour(wx.Colour(255, 128, 20))
 
-# 	def adjustLabelsCol(self, col, delta):
-# 		ct = 0
-# 		for key in self.stLabels:
-# 			r, c, x, y = self.labelPos[key]
-# 			if c >= col:
-# 				print("adjusting label %s column from %d to %d" % (key, c, c+delta))
-# 				c += delta
-# 				self.labelPos[key] = [r, c, x, y]
-# 				ct += 1
-# 				
-# 		if ct > 0:
-# 			self.shiftLabels()
-# 
-# 	def adjustLabelsRow(self, row, delta):
-# 		ct = 0
-# 		for key in self.stLabels:
-# 			r, c, x, y = self.labelPos[key]
-# 			if r >= row:
-# 				print("adjusting label %s row from %d to %d" % (key, r, r+delta))
-# 				r += delta
-# 				self.labelPos[key] = [r, c, x, y]
-# 				ct += 1
-# 				
-# 		if ct > 0:
-# 			self.shiftLabels()
-		
-		
 	def shiftLabels(self):
 		for key in self.stLabels:
 			self.adjustLabelPosition(key)		
@@ -173,6 +146,12 @@ class Canvas(wx.Panel):
 
 		self.labelPos[key] = [row, col, adjx, adjy]
 		self.adjustLabelPosition(key)
+		
+	def deleteLabel(self, key):
+		if key in self.stLabels.keys():
+			st = self.stLabels[key]
+			st.Destroy()
+			del(self.stLabels[key])
 		
 	def adjustLabelPosition(self, key):
 		st = self.stLabels[key]
@@ -330,12 +309,19 @@ class Canvas(wx.Panel):
 		b = ct.getBmp()
 		self.canvasClick(b, self.cRow, self.cCol, False)
 		
-	def shiftCanvas(self, delta):
+	def shiftCanvas(self, delta, grow=False):
+		if self.offset + delta + colsCanvas > len(self.cvarr[0]) and not grow:
+			if delta > 1:
+				delta = len(self.cvarr[0]) - colsCanvas - self.offset
+			else:
+				return False
+		
 		self.offset += delta
 		if self.offset < 0:
 			self.offset = 0
 		
 		rc = False
+		
 		if self.offset + colsCanvas > len(self.cvarr[0]):
 			add = self.offset + colsCanvas - len(self.cvarr[0])
 			rc = True
@@ -346,6 +332,12 @@ class Canvas(wx.Panel):
 		self.shiftLabels()
 		self.updateStatus()
 		return rc
+	
+	def atLeftBound(self):
+		return self.offset == 0
+	
+	def atRightBound(self):
+		return self.offset+colsCanvas == len(self.cvarr[0])
 			
 	def loadCanvas(self, cvarr, offset=None):
 		if offset is not None:
@@ -373,7 +365,6 @@ class Canvas(wx.Panel):
 		
 	def canvasClick(self, bmp, row, col, left):
 		if self.pendingOperation is not None:
-			print("check on pending operation")
 			if self.pendingOperation == PENDING_ROW_DELETE:
 				self.doDeleteRow(row)
 				self.parent.pendingOpCompleted(row, None, -1)
@@ -385,7 +376,6 @@ class Canvas(wx.Panel):
 				self.parent.pendingOpCompleted(None, col+self.offset, -1)
 			elif self.pendingOperation == PENDING_COL_INSERT:
 				self.doInsertCol(col)
-				print("calling pending op complete")
 				self.parent.pendingOpCompleted(None, col+self.offset, 1)
 			return
 			
@@ -447,9 +437,12 @@ class Canvas(wx.Panel):
 		cols = len(self.cvarr[0])
 		rows = len(self.cvarr)
 		self.parent.setStatusBar(
-			"Screen %2d : %2d    Map: %2d : %2d (offset %d) / %2d : %2d" %
+			"Screen %2d : %2d    Map: %2d : %2d (offset %d)  Full Map Size:  %2d : %2d" %
 				(self.cCol, self.cRow, self.cCol+self.offset, self.cRow, self.offset, cols, rows),
 			 1)
+		
+	def getMapSize(self):
+		return len(self.cvarr[0]), len(self.cvarr)
 		
 	def getData(self):
 		return self.cvarr

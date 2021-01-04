@@ -16,8 +16,6 @@ BMPDIM = (20, 20)
 
 class MyFrame(wx.Frame):
 	def __init__(self):
-		
-
 		wx.Frame.__init__(self, None, wx.ID_ANY, "Panel", size=(100, 100))
 		self.Bind(wx.EVT_CLOSE, self.onClose)
 		
@@ -33,10 +31,10 @@ class MyFrame(wx.Frame):
 		self.fontBlocks = wx.Font(14, wx.FONTFAMILY_TELETYPE, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL)
 		self.colorBlocks = wx.Colour(255, 20, 20)
 		
-		self.fontLabels = wx.Font(70, wx.FONTFAMILY_TELETYPE, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL)
-		self.colorLabels = wx.Colour(255, 128, 20)
+		self.fontLabels = wx.Font(18, wx.FONTFAMILY_TELETYPE, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL)
+		self.colorLabels = wx.Colour(255, 255, 255)
 
-		self.loadData('panel')
+		self.loadData('panel3')
 				
 		rows = len(self.mapArray)
 		cols = len(self.mapArray[0])
@@ -103,6 +101,13 @@ class MyFrame(wx.Frame):
 				bl["adjx"], bl["adjy"],
 				bl["label"],
 				font=self.fontBlocks, fg=self.colorBlocks)
+			
+		for lbl in self.annotations["labels"]:
+			self.placeLabel( 
+				lbl["row"], lbl["col"],
+				lbl["adjx"], lbl["adjy"],
+				lbl["label"],
+				font=self.fontLabels, fg=self.colorLabels)
 			
 		
 	def placeLabel(self, row, col, adjx, adjy, text, font=None, fg=None, bg=None):
@@ -224,7 +229,6 @@ class MyFrame(wx.Frame):
 		maxRows = len(self.panelMap)-1
 					
 		for r, c in eobs:
-			print("start at r%d c%d" % (r,c))
 			te = self.panelMap[r][c][1]	
 			eadj = te.getAdjacent(ADJ_EAST)
 			wadj = te.getAdjacent(ADJ_WEST)
@@ -239,8 +243,6 @@ class MyFrame(wx.Frame):
 			else:
 				lastAdjRow = None
 				
-			print(str(eastbound), str(lastAdjRow))
-				
 			startRow = r
 			startCol = c
 			startEast = eastbound
@@ -252,27 +254,21 @@ class MyFrame(wx.Frame):
 			while True:
 				entryReverse = False
 				
-				print("new coord: r%d c%d" % (r,c))
-				
 				if c < 0 or c > maxCols:
-					print("max col exceeded")
 					foundRoute = True
 					break
 				if r < 0 or r > maxRows:
-					print("max rows exceeded")
 					foundRoute = True
 					break
 	
 				try:
 					te = self.panelMap[r][c][1]
 				except IndexError:
-					print("index error")
 					break
 				
 				if lastAdj:
 					mesh, tileEntry, entryReverse, _ = self.tracksMesh(te, lastAdj)
 					if not mesh:
-						print("last te does not mesh with this te")
 						break
 					if tileEntry == ADJ_WEST:
 						eastbound = True
@@ -288,10 +284,8 @@ class MyFrame(wx.Frame):
 					adj = te.getAdjacent(ADJ_WEST)
 					
 				if adj is None:
-					print("hit none")
 					break
 				if adj == [0, 0]:
-					print("found matching EOB")
 					foundRoute = True
 					break
 				
@@ -329,7 +323,6 @@ class MyFrame(wx.Frame):
 			if lastAdj:
 				mesh, tileEntry, entryReverse, vertDir = self.tracksMesh(te, lastAdj)
 				if not mesh:
-					print("last te does not mesh with this te")
 					break
 				if tileEntry == ADJ_WEST:
 					eastbound = True

@@ -3,11 +3,13 @@ import wx
 from utilities import buildKey		
 
 class AnnotateSignalsDlg(wx.Dialog):
-	def __init__(self, parent, sglist):
+	def __init__(self, parent, bmps, sglist, maxx):
 		wx.Dialog.__init__(self, parent, wx.ID_ANY, "Signal Annotation")
 		self.Bind(wx.EVT_CLOSE, self.onClose)
 		
 		self.parent = parent
+		self.bmps = bmps
+		self.maxx = maxx
 		self.annotations = self.parent.annotations["signals"]
 		self.modified = False
 		sz = wx.BoxSizer(wx.VERTICAL)
@@ -56,9 +58,9 @@ class AnnotateSignalsDlg(wx.Dialog):
 			offc = 0
 			adjx = 0
 			adjy = 0
-			self.self.currentKey = None
+			self.currentKey = None
 			
-		self.bUpdateDisplay = wx.Button(self, wx.ID_ANY, "Update Display")
+		self.bUpdateDisplay = wx.BitmapButton(self, wx.ID_ANY, self.bmps.update)
 		self.Bind(wx.EVT_BUTTON, self.onBUpdateDisplay, self.bUpdateDisplay)
 			
 		self.tcLabel = wx.TextCtrl(self, wx.ID_ANY, label, size=(125, -1))
@@ -150,7 +152,6 @@ class AnnotateSignalsDlg(wx.Dialog):
 		if self.currentKey:
 			nl = self.tcLabel.GetValue()
 			if nl != self.annotations[self.currentKey]["label"]:
-				print("mod label")
 				self.modified = True
 				self.annotations[self.currentKey]["label"] = nl
 
@@ -175,7 +176,6 @@ class AnnotateSignalsDlg(wx.Dialog):
 			self.annotations[self.currentKey]["adjy"] = self.scAdjY.GetValue()
 			
 	def getStatus(self):
-		print("returning ", self.modified)
 		return self.modified
 		
 	def onClose(self, _):

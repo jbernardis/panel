@@ -11,6 +11,7 @@ from pallettemap import PalletteMap
 from annotateTurnoutsDlg import AnnotateTurnoutsDlg
 from annotateSignalsDlg import AnnotateSignalsDlg
 from annotateBlocksDlg import AnnotateBlocksDlg 
+from labeldlg import LabelsDlg
 
 from utilities import buildKey
 from options import Options
@@ -30,7 +31,7 @@ MENU_ANN_LABELS = 204
 
 
 class MyFrame(wx.Frame):
-	def __init__(self):
+	def __init__(self): 
 
 		wx.Frame.__init__(self, None, wx.ID_ANY, "", size=(100, 100))
 		self.Bind(wx.EVT_CLOSE, self.onClose)
@@ -39,7 +40,7 @@ class MyFrame(wx.Frame):
 		self.currentStart = [0, 0]
 		self.currentEnd = [49, 38]
 		self.modified = False
-		self.annotations = {}
+		self.annotations = self.emptyAnnotations()
 		self.options = Options()
 		
 		self.fontTurnouts = wx.Font(10, wx.FONTFAMILY_TELETYPE, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL)
@@ -99,9 +100,11 @@ class MyFrame(wx.Frame):
 			'turnout':   pm.getPalletteTurnout()
 			}
 		
-		self.pallette = Pallette(self, self.pallettes, self.bmps)
+		self.pallette = Pallette(self, self.pallettes, self.bmps, self.options)
 		
 		self.canvas = Canvas(self, self.pallettes, self.bmps)
+		self.pallette.enableLeftButtons(not self.canvas.atRightBound())
+		self.pallette.enableRightButtons(not self.canvas.atLeftBound())
 		
 		sz = wx.BoxSizer(wx.HORIZONTAL)
 		sz.AddSpacer(20)
@@ -144,21 +147,6 @@ class MyFrame(wx.Frame):
 		self.reKeyAnnotations(row, col, delta)
 		
 	def reKeyAnnotations(self, row, col, delta):
-		print("pending op complete")
-		if col is None:
-			print("re-keying annotations below row %d" % row)
-			
-		elif row is None:
-			print("re-keying annotations to the right of col %d, delta = %d" % (col, delta))
-			
-		elif col is None and row is None:
-			print("invalid arguments")
-			return
-			
-		else:
-			print("nothing to do")
-			return
-
 		# turnouts		
 		toList = self.canvas.enumerateTurnouts()
 		coords = [x.getPos() for x in toList]
@@ -169,22 +157,17 @@ class MyFrame(wx.Frame):
 			newKeys.append(kNew)
 			if row is None and c >= col:
 				kOld = buildKey(r, c-delta)
-				print("we need to change key %s to %s" % (kOld, kNew))
 				updateList[kNew] = self.annotations["turnouts"][kOld]
 				updateList[kNew]["col"] = c
 			elif col is None and r >= row:
 				kOld = buildKey(r-delta, c)
-				print("we need to change key %s to %s" % (kOld, kNew))
 				updateList[kNew] = self.annotations["turnouts"][kOld]
 				updateList[kNew]["row"] = r
 				
 		kl = list(self.annotations["turnouts"].keys())
 		for k in kl:
 			if k not in newKeys:
-				print("purging key %s" % k)
 				del(self.annotations["turnouts"][k])
-				
-		print(str(updateList))
 
 		if len(updateList) > 0:
 			self.annotations["turnouts"].update(updateList)
@@ -199,23 +182,18 @@ class MyFrame(wx.Frame):
 			newKeys.append(kNew)
 			if row is None and c >= col:
 				kOld = buildKey(r, c-delta)
-				print("we need to change key %s to %s" % (kOld, kNew))
 				updateList[kNew] = self.annotations["signals"][kOld]
 				updateList[kNew]["col"] = c
 			elif col is None and r >= row:
 				kOld = buildKey(r-delta, c)
-				print("we need to change key %s to %s" % (kOld, kNew))
 				updateList[kNew] = self.annotations["signals"][kOld]
 				updateList[kNew]["row"] = r
 				
 		kl = list(self.annotations["signals"].keys())
 		for k in kl:
 			if k not in newKeys:
-				print("purging key %s" % k)
 				del(self.annotations["signals"][k])
 				
-		print(str(updateList))
-
 		if len(updateList) > 0:
 			self.annotations["signals"].update(updateList)
 			self.placeSignalLabels()
@@ -229,19 +207,16 @@ class MyFrame(wx.Frame):
 			newKeys.append(kNew)
 			if row is None and c >= col:
 				kOld = buildKey(r, c-delta)
-				print("we need to change key %s to %s" % (kOld, kNew))
 				updateList[kNew] = self.annotations["blocks"]["blockends"][kOld]
 				updateList[kNew]["col"] = c
 			elif col is None and r >= row:
 				kOld = buildKey(r-delta, c)
-				print("we need to change key %s to %s" % (kOld, kNew))
 				updateList[kNew] = self.annotations["blocks"]["blockends"][kOld]
 				updateList[kNew]["row"] = r
 
 		kl = list(self.annotations["blocks"]["blockends"].keys())
 		for k in kl:
 			if k not in newKeys:
-				print("purging key %s" % k)
 				del(self.annotations["blocks"]["blockends"][k])
 				
 		if len(updateList) > 0:
@@ -267,6 +242,7 @@ class MyFrame(wx.Frame):
 		lkeys = []
 		prefix = "T"
 		toList = self.annotations["turnouts"]
+		
 		for toKey in toList.keys():
 			tk = prefix + toKey
 			lkeys.append(tk)
@@ -311,31 +287,55 @@ class MyFrame(wx.Frame):
 		lkeys = []
 		prefix = "L"
 		lblList = self.annotations["labels"]
-		for lblKey in lblList.keys():
-			lk = prefix + lblKey
+		for i in range(len(lblList)):
+			lbl = lblList[i]
+			lk = "%s%03d" % (prefix, i)
 			lkeys.append(lk)
 			self.canvas.placeLabel(lk, 
-				lblList[lblKey]["row"], lblList[lblKey]["col"],
-				lblList[lblKey]["adjx"], lblList[lblKey]["adjy"],
-				lblList[lblKey]["label"],
+				lbl["row"], lbl["col"],
+				lbl["adjx"], lbl["adjy"],
+				lbl["label"],
 				font=self.fontLabels, fg=self.colorLabels)
 		self.canvas.purgeUnusedLabels(lkeys, prefix)
 		
+	def placeLabel(self, lx):
+		prefix = "L"
+		lk = "%s%03d" % (prefix, lx)
+		lbl = self.annotations["labels"][lx]
+		self.canvas.placeLabel(lk, 
+			lbl["row"], lbl["col"],
+			lbl["adjx"], lbl["adjy"],
+			lbl["label"],
+			font=self.fontLabels, fg=self.colorLabels)
+		
+	def deleteLabel(self, ix):
+		prefix = "L"
+		lk = "%s%03d" % (prefix, ix)
+		self.canvas.deleteLabel(lk)
+		
 	def onShiftLeft(self, _):
-		if self.canvas.shiftCanvas(1):
+		if self.canvas.shiftCanvas(1, grow=self.pallette.allowGrowthRight()):
 			self.setModified()
+		self.pallette.enableRightButtons(True)
+		self.pallette.enableLeftButtons(not self.canvas.atRightBound())
 	
 	def onShiftRight(self, _):
 		if self.canvas.shiftCanvas(-1):
 			self.setModified()
+		self.pallette.enableRightButtons(not self.canvas.atLeftBound())
+		self.pallette.enableLeftButtons(True)
 	
 	def onPageLeft(self, _):
-		if self.canvas.shiftCanvas(40):
+		if self.canvas.shiftCanvas(40, grow=self.pallette.allowGrowthRight()):
 			self.setModified()
+		self.pallette.enableRightButtons(True)
+		self.pallette.enableLeftButtons(not self.canvas.atRightBound())
 	
 	def onPageRight(self, _):
 		if self.canvas.shiftCanvas(-40):
 			self.setModified()
+		self.pallette.enableRightButtons(not self.canvas.atLeftBound())
+		self.pallette.enableLeftButtons(True)
 
 	def setWindowTitle(self):
 		t = "Panel Editor"
@@ -530,6 +530,8 @@ class MyFrame(wx.Frame):
 			
 		mapArray = [x.strip() for x in inlns]
 		self.canvas.loadCanvas(mapArray, 0)
+		self.pallette.enableLeftButtons(not self.canvas.atRightBound())
+		self.pallette.enableRightButtons(not self.canvas.atLeftBound())
 		
 		annFn = os.path.splitext(self.currentFile)[0] + ".json"
 		with open(annFn, "r") as fp:
@@ -540,16 +542,21 @@ class MyFrame(wx.Frame):
 						'I/O Error', wx.OK | wx.ICON_INFORMATION)
 				dlg.ShowModal()
 				dlg.Destroy()
-				self.annotations = {"turnouts": {}, 
-						"signals": {},
-						"blocks": { 
-							"blockends": {},
-							"blocks": {} },
-						"labels": {} }
+				self.annotations = self.emptyAnnotations()
 
 		self.canvas.clearAllLabels()
 		if self.options.AutoLabel():
 			self.placeLabels()
+			
+	def emptyAnnotations(self):
+		return {"turnouts": {}, 
+			"signals": {},
+			"blocks": { 
+				"blockends": {},
+				"blocks": {} },
+			"labels": {}
+		}
+
 				
 	def menuFileNew(self, _):
 		if self.modified:
@@ -570,6 +577,8 @@ class MyFrame(wx.Frame):
 					
 		mapArray = ['.' * cols] * rows
 		self.canvas.loadCanvas(mapArray, 0)
+		self.pallette.enableLeftButtons(not self.canvas.atRightBound())
+		self.pallette.enableRightButtons(not self.canvas.atLeftBound())
 		
 		self.annotations = {"turnouts": {}, 
 			"signals": {},
@@ -581,8 +590,9 @@ class MyFrame(wx.Frame):
 				
 		
 	def menuAnnotateTurnouts(self, _):
+		maxx = self.canvas.getMapSize()[0]-1
 		toList = self.canvas.enumerateTurnouts()
-		dlg = AnnotateTurnoutsDlg(self, toList)
+		dlg = AnnotateTurnoutsDlg(self, self.bmps, toList, maxx)
 		dlg.ShowModal()
 		mod = dlg.getStatus()
 		dlg.Destroy()
@@ -590,8 +600,9 @@ class MyFrame(wx.Frame):
 			self.setModified()
 		
 	def menuAnnotateSignals(self, _):
+		maxx = self.canvas.getMapSize()[0]-1
 		sgList = self.canvas.enumerateSignals()
-		dlg = AnnotateSignalsDlg(self, sgList)
+		dlg = AnnotateSignalsDlg(self, self.bmps, sgList, maxx)
 		dlg.ShowModal()
 		mod = dlg.getStatus()
 		dlg.Destroy()
@@ -599,8 +610,9 @@ class MyFrame(wx.Frame):
 			self.setModified()	
 			
 	def menuAnnotateBlocks(self, _):
+		maxx = self.canvas.getMapSize()[0]-1
 		eobList = self.canvas.enumerateEOBs()
-		dlg = AnnotateBlocksDlg(self, eobList)
+		dlg = AnnotateBlocksDlg(self, self.bmps, eobList, maxx)
 		dlg.ShowModal()
 		mod = dlg.getStatus()
 		dlg.Destroy()
@@ -608,7 +620,13 @@ class MyFrame(wx.Frame):
 			self.setModified()	
 	
 	def menuAnnotateLabels(self, _):
-		print("labels")	
+		maxx = self.canvas.getMapSize()[0]-1
+		dlg = LabelsDlg(self, self.bmps, maxx)
+		dlg.ShowModal()
+		mod = dlg.getStatus()
+		dlg.Destroy()
+		if (mod):
+			self.setModified()	
 		
 	def getCurrentTool(self):
 		return self.pallette.getCurrentTool()

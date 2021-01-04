@@ -3,11 +3,7 @@ Panel
 
 
 Draw
-10) general labels
 
 
 some compromise for status line since it doesn't seem to show up on linux
-allow shift left to not automatically add columns
-allow shift right to grow on the left side??
-save x columns??
 

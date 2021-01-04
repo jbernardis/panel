@@ -16,10 +16,15 @@ class PalletteTile:
 		self.cb(self.tid, False)
 
 class Pallette(wx.Panel):
-	def __init__(self, parent, pallettes, bmps):
+	def __init__(self, parent, pallettes, bmps, options):
 		wx.Panel.__init__(self, parent, wx.ID_ANY)	
 		self.parent = parent
 		self.masterPallette = pallettes['master']
+		self.options = options
+		
+		self.autoGrowRight = self.options.AutoGrowRight()
+		
+		self.leftFlag = True
 		
 		sz = wx.BoxSizer(wx.VERTICAL)
 		sz.AddSpacer(30)
@@ -198,11 +203,15 @@ class Pallette(wx.Panel):
 		b = wx.BitmapButton(self, wx.ID_ANY, bmps.shiftleft)
 		b.SetToolTip("Shift Left")
 		b.Bind(wx.EVT_BUTTON, self.parent.onShiftLeft, b)
+		#b.Enable(False)
+		self.bShiftLeft = b
 		hsz.Add(b)
 		hsz.AddSpacer(10)		
 		b = wx.BitmapButton(self, wx.ID_ANY, bmps.shiftright)
 		b.SetToolTip("Shift Right")
 		b.Bind(wx.EVT_BUTTON, self.parent.onShiftRight, b)
+		b.Enable(False)
+		self.bShiftRight = b
 		hsz.Add(b)
 		hsz.AddSpacer(20)
 		sz.Add(hsz)
@@ -213,12 +222,26 @@ class Pallette(wx.Panel):
 		b = wx.BitmapButton(self, wx.ID_ANY, bmps.pageleft)
 		b.SetToolTip("Page Left")
 		b.Bind(wx.EVT_BUTTON, self.parent.onPageLeft, b)
+		self.bPageLeft = b
 		hsz.Add(b)
 		hsz.AddSpacer(10)		
 		b = wx.BitmapButton(self, wx.ID_ANY, bmps.pageright)
 		b.SetToolTip("Page Right")
 		b.Bind(wx.EVT_BUTTON, self.parent.onPageRight, b)
+		b.Enable(False)
+		self.bPageRight = b
 		hsz.Add(b)
+		hsz.AddSpacer(20)
+		sz.Add(hsz)
+		sz.AddSpacer(30)
+		
+		hsz = wx.BoxSizer(wx.HORIZONTAL)
+		hsz.AddSpacer(20)		
+		cb = wx.CheckBox(self, wx.ID_ANY, "Auto Expand on Right")
+		cb.SetValue(self.autoGrowRight)
+		self.Bind(wx.EVT_CHECKBOX, self.onAutoRight, cb)
+		self.cbAutoRight = cb
+		hsz.Add(cb)
 		hsz.AddSpacer(20)
 		sz.Add(hsz)
 		sz.AddSpacer(30)
@@ -228,6 +251,24 @@ class Pallette(wx.Panel):
 		hsz.Add(sz)
 		hsz.AddSpacer(20)
 		self.SetSizer(hsz)
+		
+	def onAutoRight(self, _):
+		self.enableLeftButtons(self.leftFlag)
+		self.autoGrowRight = self.allowGrowthRight()
+		self.options.setAutoGrowRight(self.autoGrowRight)
+		
+	def allowGrowthRight(self):
+		return self.cbAutoRight.GetValue()
+		
+	def enableLeftButtons(self, flag=True):
+		self.leftFlag = flag
+		en = flag or self.allowGrowthRight()
+		self.bShiftLeft.Enable(en)
+		self.bPageLeft.Enable(en)
+		
+	def enableRightButtons(self, flag=True):
+		self.bShiftRight.Enable(flag)
+		self.bPageRight.Enable(flag)
 		
 	def palletteClick(self, tid, left):
 		if left:

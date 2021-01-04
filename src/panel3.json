@@ -220,15 +220,22 @@
             }
         }
     },
-    "labels": {
-        "r10c20": {
+    "labels": [
+        {
             "adjx": 0,
             "adjy": 0,
             "col": 20,
             "label": "Panel 1",
+            "row": 4
+        },
+        {
+            "adjx": 0,
+            "adjy": 0,
+            "col": 20,
+            "label": "Panel 1B",
             "row": 7
         }
-    },
+    ],
     "signals": {
         "r09c20": {
             "adjx": 0,

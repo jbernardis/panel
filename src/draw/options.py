@@ -9,12 +9,25 @@ class Options:
 		except (IOError, FileNotFoundError):
 			self.opts = {
 				"autoLabel": True,
-				"lastDir" : os.getcwd()
+				"lastDir" : os.getcwd(),
+				"autogrowright": True
 			}
 			self.save()
 
 	def AutoLabel(self):
 		return self.opts["autoLabel"]
+	
+	def AutoGrowRight(self):
+		try:
+			return self.opts["autogrowright"]
+		except KeyError:
+			self.opts["autogrowright"] = True
+			self.save()
+			return self.opts["autogrowright"]
+		
+	def setAutoGrowRight(self, flag):
+		self.opts["autogrowright"] = flag
+		self.save()
 	
 	def LastDir(self):
 		return self.opts["lastDir"]

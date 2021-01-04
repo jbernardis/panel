@@ -4,11 +4,13 @@ from utilities import buildKey
 		
 
 class AnnotateTurnoutsDlg(wx.Dialog):
-	def __init__(self, parent, tolist):
+	def __init__(self, parent, bmps, tolist, maxx):
 		wx.Dialog.__init__(self, parent, wx.ID_ANY, "Turnout Annotation")
 		self.Bind(wx.EVT_CLOSE, self.onClose)
 		
 		self.parent = parent
+		self.bmps = bmps
+		self.maxx = maxx
 		self.annotations = self.parent.annotations["turnouts"]
 		self.modified = False
 		sz = wx.BoxSizer(wx.VERTICAL)
@@ -57,9 +59,9 @@ class AnnotateTurnoutsDlg(wx.Dialog):
 			offc = 0
 			adjx = 0
 			adjy = 0
-			self.self.currentKey = None
+			self.currentKey = None
 			
-		self.bUpdateDisplay = wx.Button(self, wx.ID_ANY, "Update Display")
+		self.bUpdateDisplay = wx.BitmapButton(self, wx.ID_ANY, self.bmps.update)
 		self.Bind(wx.EVT_BUTTON, self.onBUpdateDisplay, self.bUpdateDisplay)
 			
 		self.tcLabel = wx.TextCtrl(self, wx.ID_ANY, label, size=(125, -1))
