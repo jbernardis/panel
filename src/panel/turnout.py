@@ -26,6 +26,12 @@ class Turnout:
 
 	def onClick(self, evt):
 		self.cb(self, LEFT)
+
+	def emulateClick(self):
+		self.cb(self, LEFT)
 		
 	def onRightClick(self, evt):
+		self.cb(self, RIGHT)
+				
+	def emulateRightClick(self):
 		self.cb(self, RIGHT)

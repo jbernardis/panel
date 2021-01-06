@@ -28,9 +28,15 @@ class RRSignal:
 	def getBlockStart(self):
 		startTile = self.tileType.getStartTile()
 		return self.row+startTile[1], self.col + startTile[0]
+	
+	def emulateClick(self):
+		self.cb(self, LEFT)
 
 	def onClick(self, evt):
 		self.cb(self, LEFT)
+		
+	def emulateRightClick(self):
+		self.cb(self, RIGHT)
 		
 	def onRightClick(self, evt):
 		self.cb(self, RIGHT)

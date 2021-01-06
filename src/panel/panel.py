@@ -14,9 +14,22 @@ from rrsignal import RRSignal
 
 BMPDIM = (20, 20)
 
-class MyFrame(wx.Frame):
-	def __init__(self):
-		wx.Frame.__init__(self, None, wx.ID_ANY, "Panel", size=(100, 100))
+class MapElement:
+	def __init__(self, c, pos, label):
+		self.char = c
+		self.pos = pos
+		self.label = label
+		
+	def getPos(self):
+		return self.pos
+	
+	def samePosition(self, np):
+		return np == self.pos
+	# wx.MINIMIZE_BOX | wx.MAXIMIZE_BOX | wx.RESIZE_BORDER | wx.SYSTEM_MENU | wx.CAPTION | wx.CLOSE_BOX | wx.CLIP_CHILDREN
+
+class Panel(wx.Frame):
+	def __init__(self, pnl):
+		wx.Frame.__init__(self, None, wx.ID_ANY, pnl["title"], size=(100, 100), style=0)
 		self.Bind(wx.EVT_CLOSE, self.onClose)
 		
 		self.bmps = BitMaps(os.path.join("..", "bitmaps"))
@@ -34,7 +47,7 @@ class MyFrame(wx.Frame):
 		self.fontLabels = wx.Font(18, wx.FONTFAMILY_TELETYPE, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL)
 		self.colorLabels = wx.Colour(255, 255, 255)
 
-		self.loadData('panel3')
+		self.loadData(pnl["filename"])
 				
 		rows = len(self.mapArray)
 		cols = len(self.mapArray[0])
@@ -44,6 +57,8 @@ class MyFrame(wx.Frame):
 		self.panelMap = []
 		self.turnouts = []
 		self.signals = []
+		self.turnoutMap = {} # label to turnout map
+		self.signalMap = {}  # label to signal map
 		
 		for r in range(rows):
 			rowsz = wx.BoxSizer(wx.HORIZONTAL)
@@ -56,6 +71,10 @@ class MyFrame(wx.Frame):
 					b = wx.StaticBitmap(self, wx.ID_ANY, tileType.getBmp(STYPE_RED), size=BMPDIM, style=0)
 					sid = len(self.signals)
 					sg = RRSignal(sid, tileType, r, c, b, self.clickSignal)
+					lbl = self.getSignalLabel(r, c)
+					if lbl is not None:
+						self.signalMap[lbl] = sg
+						
 					self.signals.append([sg])
 					rowMap.append([b, None])
 				else:
@@ -65,6 +84,10 @@ class MyFrame(wx.Frame):
 						toid = len(self.turnouts)
 						to = Turnout(toid, te, b, self.clickTurnout)
 						te.setTurnout(to)
+						lbl = self.getTurnoutLabel(r, c)
+						if lbl is not None:
+							self.turnoutMap[lbl] = to
+							
 						self.turnouts.append(to)
 						b.SetBitmap(te.getBmp())	
 					rowMap.append([b, te])
@@ -108,8 +131,49 @@ class MyFrame(wx.Frame):
 				lbl["adjx"], lbl["adjy"],
 				lbl["label"],
 				font=self.fontLabels, fg=self.colorLabels)
-			
+	
+	def emulateSignalClick(self, lbl, right=False):
+		if lbl in self.signalMap.keys():
+			sg = self.signalMap[lbl]
+			if right:
+				sg.emulateRightClick()
+			else:
+				sg.emulateClick()
+				
+			return True
 		
+		return False
+	
+	def emulateTurnoutClick(self, lbl, right=False):
+		if lbl in self.turnoutMap.keys():
+			to = self.turnoutMap[lbl]
+			if right:
+				to.emulateRightClick()
+			else:
+				to.emulateClick()
+				
+			return True
+		
+		return False
+
+	def getSignalLabel(self, r, c):
+		sgl = self.annotations["signals"]
+		
+		for sg in 	sgl.values():
+			if sg["row"] == r and sg["col"] == c:
+				return sg["label"]
+			
+		return None
+
+	def getTurnoutLabel(self, r, c):
+		tol = self.annotations["turnouts"]
+		
+		for to in tol.values():
+			if to["row"] == r and to["col"] == c:
+				return to["label"]
+						
+		return None
+	
 	def placeLabel(self, row, col, adjx, adjy, text, font=None, fg=None, bg=None):
 		st = wx.StaticText(self, wx.ID_ANY, text)
 		self.stLabels.append(st)
@@ -162,7 +226,6 @@ class MyFrame(wx.Frame):
 							"blockends": {},
 							"blocks": {} },
 						"labels": {} }
-
 		
 	def tracksMesh(self, te, lastAdj):
 		# return values:
@@ -409,17 +472,6 @@ class MyFrame(wx.Frame):
 		self.markRoute(r, c, TTYPE_NORMAL if red else TTYPE_ROUTED, sg.isEast())
 		
 	def onClose(self, _):
+		#pass
 		self.Hide()
-		self.Destroy()
-
-if __name__ == '__main__':
-	class App(wx.App):
-		def OnInit(self):
-			self.frame = MyFrame()
-			self.frame.Show()
-			self.SetTopWindow(self.frame)
-			return True
-
-
-	app = App(False)
-	app.MainLoop()
+		#self.Destroy()
